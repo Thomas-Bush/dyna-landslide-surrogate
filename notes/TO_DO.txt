@@ -1,0 +1,23 @@
+CHECK STATE / TIMESTEP DURATION / SPACING - SHOULD ALL BE THE SAME, 1S?
+
+
+add max value array
+
+store metadata option
+
+update utils to OOP
+
+def flatten_to_max_value(state_arrays):
+    """
+    Flatten a list of 2D state arrays into a single array, keeping the maximum value at any location.
+
+    Args:
+    state_arrays (List[np.ndarray]): List of 2D NumPy arrays representing different states.
+
+    Returns:
+    np.ndarray: A 2D NumPy array with the maximum value at each location.
+    """
+    # Stack the arrays along a new dimension and then take the max along this new dimension
+    max_value_array = np.max(np.stack(state_arrays), axis=0)
+
+    return max_value_array
