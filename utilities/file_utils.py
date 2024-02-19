@@ -158,3 +158,26 @@ class FileUtils:
                 dirs[:] = []
 
         return target_files
+    
+    @staticmethod
+    def get_subfolder_names(directory):
+        """Get all subfolder names within a specified directory.
+
+        Args:
+            directory (str): The path to the directory from which to retrieve subfolder names.
+
+        Returns:
+            list: A list of subfolder names within the specified directory.
+        """
+        # List to hold the names of subfolders
+        subfolders = []
+
+        # Iterate over the entries in the given directory
+        for entry in os.listdir(directory):
+            # Construct full path
+            full_path = os.path.join(directory, entry)
+            # Check if this entry is a directory
+            if os.path.isdir(full_path):
+                subfolders.append(entry)
+
+        return subfolders
