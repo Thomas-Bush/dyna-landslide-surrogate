@@ -2,6 +2,9 @@ import os
 import shutil
 import json
 from pathlib import Path
+import numpy as np
+import re
+from collections import OrderedDict
 
 class FileUtils:
     """Utility class for common file operations."""
@@ -169,15 +172,86 @@ class FileUtils:
         Returns:
             list: A list of subfolder names within the specified directory.
         """
-        # List to hold the names of subfolders
         subfolders = []
-
-        # Iterate over the entries in the given directory
         for entry in os.listdir(directory):
-            # Construct full path
             full_path = os.path.join(directory, entry)
-            # Check if this entry is a directory
             if os.path.isdir(full_path):
                 subfolders.append(entry)
-
         return subfolders
+    
+    @staticmethod
+    def load_state_arrays(root_directory, model_id, result_type):
+        """Load all state arrays for a specific model and result type into a sorted dictionary.
+
+        Args:
+            root_directory (str): The root directory where the model folders are located.
+            model_id (str): The model ID for which to load the state arrays.
+            result_type (str): The result type to load ('thickness' or 'velocity').
+
+        Returns:
+            OrderedDict: A dictionary with state numbers as keys and state arrays as values,
+                        sorted by the state numbers.
+
+        Raises:
+            ValueError: If the specified result path does not exist or no files are found.
+        """
+        state_dict = {}
+        result_path = os.path.join(root_directory, model_id, result_type)
+
+        # Check if the result path exists
+        if not os.path.isdir(result_path):
+            raise ValueError(f"The specified directory does not exist: {result_path}")
+
+        # Define a regex pattern to match state files, e.g., '00001_thickness_1.npy'
+        pattern = re.compile(rf"^{model_id}_{result_type}_(\d+).npy$")
+
+        # List all files in the result type directory
+        file_names = os.listdir(result_path)
+        if not file_names:
+            raise ValueError(f"No files found in the directory: {result_path}")
+
+        # Iterate over all files in the directory
+        for file_name in file_names:
+            # Check if the file name matches the state file pattern
+            match = pattern.match(file_name)
+            if match:
+                state_number = int(match.group(1))
+                file_path = os.path.join(result_path, file_name)
+                state_dict[state_number] = np.load(file_path)
+
+        # Sort the dictionary by state numbers (keys)
+        sorted_state_dict = OrderedDict(sorted(state_dict.items()))
+
+        if not sorted_state_dict:
+            raise ValueError(f"No state files were loaded from the directory: {result_path}")
+
+        return sorted_state_dict
+    
+    @staticmethod
+    def load_all_models_state_arrays(root_directory, result_type, model_ids=None):
+        """Load state arrays for all models in the root directory, optionally filtered by model_ids, and return an ordered dictionary.
+
+        Args:
+            root_directory (str): The root directory where the model folders are located.
+            result_type (str): The result type to load ('thickness' or 'velocity').
+            model_ids (list, optional): A list of model IDs to load. If None, load all models.
+
+        Returns:
+            OrderedDict: An ordered dictionary with model IDs as keys and corresponding state arrays as values.
+        """
+        overall_dict = {}
+        # Get the list of model IDs from the directory if not provided
+        if model_ids is None:
+            model_ids = FileUtils.get_subfolder_names(root_directory)
+        
+        # Loop through each model ID and load its state arrays
+        for model_id in model_ids:
+            model_path = os.path.join(root_directory, model_id)
+            if os.path.exists(model_path):
+                state_arrays = FileUtils.load_state_arrays(root_directory, model_id, result_type)
+                overall_dict[model_id] = state_arrays
+            else:
+                print(f"Model path does not exist and will be ignored: {model_path}")
+
+        # Return the overall dictionary as an OrderedDict, sorted by model IDs
+        return OrderedDict(sorted(overall_dict.items()))
