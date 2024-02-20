@@ -52,9 +52,44 @@ class ArrayVisualizer:
 
 
 
+    # def plot_array(self, array, x_coords=None, y_coords=None, show_coords=True, blank_zeros=True):
+    #     plot_array = np.ma.masked_where(array == 0, array) if blank_zeros else array
+    #     norm = Normalize(vmin=self.fixed_scale[0], vmax=self.fixed_scale[1]) if self.fixed_scale else Normalize(vmin=plot_array.min(), vmax=plot_array.max())
+
+    #     fig, ax = plt.subplots()
+    #     extent = [x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()] if x_coords is not None and y_coords is not None else None
+    #     cax = ax.imshow(plot_array, cmap=self.colormap, norm=norm, extent=extent)
+
+    #     if show_coords and x_coords is not None and y_coords is not None:
+    #         ax.set_xlabel('X Coordinate')
+    #         ax.set_ylabel('Y Coordinate')
+    #         plt.xticks(rotation=45)
+    #     else:
+    #         ax.set_xticks([])
+    #         ax.set_yticks([])
+
+    #     # Annotate the plot with the maximum pixel value
+    #     max_val = np.max(plot_array)
+    #     max_loc = np.unravel_index(np.argmax(plot_array), plot_array.shape)
+    #     if extent is not None:
+    #         max_x, max_y = x_coords[max_loc[1]], y_coords[max_loc[0]]
+    #     else:
+    #         max_x, max_y = max_loc[1], max_loc[0]
+    #     ax.annotate(f'Max: {max_val}', xy=(max_x, max_y), color='black', weight='bold')
+
+    #     fig.colorbar(cax, ax=ax)
+    #     plt.show()
+        
+
     def plot_array(self, array, x_coords=None, y_coords=None, show_coords=True, blank_zeros=True):
-        plot_array = np.ma.masked_where(array == 0, array) if blank_zeros else array
-        norm = Normalize(vmin=self.fixed_scale[0], vmax=self.fixed_scale[1]) if self.fixed_scale else Normalize(vmin=plot_array.min(), vmax=plot_array.max())
+        if blank_zeros:
+            plot_array = np.ma.masked_where(array == 0, array)
+            max_val = plot_array.max()
+        else:
+            plot_array = array
+            max_val = np.max(array)
+
+        norm = Normalize(vmin=self.fixed_scale[0], vmax=self.fixed_scale[1]) if self.fixed_scale else Normalize(vmin=plot_array.min(), vmax=max_val)
 
         fig, ax = plt.subplots()
         extent = [x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()] if x_coords is not None and y_coords is not None else None
@@ -68,22 +103,21 @@ class ArrayVisualizer:
             ax.set_xticks([])
             ax.set_yticks([])
 
-        # Annotate the plot with the maximum pixel value
-        max_val = np.max(plot_array)
+        # Find the position of the maximum value for labeling
         max_loc = np.unravel_index(np.argmax(plot_array), plot_array.shape)
         if extent is not None:
             max_x, max_y = x_coords[max_loc[1]], y_coords[max_loc[0]]
         else:
             max_x, max_y = max_loc[1], max_loc[0]
-        ax.annotate(f'Max: {max_val}', xy=(max_x, max_y), color='black', weight='bold')
+        ax.annotate(f'Max: {max_val}', xy=(max_x, max_y), color='black', weight='bold', fontsize=8,
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="black", lw=1))
 
         fig.colorbar(cax, ax=ax)
         plt.show()
 
-# Example usage:
-# plotter = ArrayPlotter(colormap='plasma', fixed_scale=(0, 1))
-# your_array = np.random.rand(10, 10)  # Replace with your actual array
-# plotter.plot_array(your_array)
+        # Print the maximum value found in the array for cross-checking
+        print(f'Maximum value in the array: {max_val}')
+
 
     def plot_multiple_arrays(self, arrays, x_coords=None, y_coords=None, show_coords=True):
         """Plots a list of 2D NumPy arrays as raster images.
