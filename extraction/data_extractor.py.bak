@@ -63,3 +63,11 @@ class RawDataExtractor:
         for ptf_path in ptf_files:
             self.run_js_in_ptf(ptf_path)
 
+# # Example usage:
+# d3plot_executable = r"C:\Path\To\d3plot_executable.exe"
+# base_directory = r"C:\Path\To\Base\Directory"
+# js_path = r"C:\Path\To\JavaScriptFile.js"
+# walk_levels = None  # Walk through all levels
+
+# raw_data_extractor = RawDataExtractor(base_directory, d3plot_executable, js_path, walk_levels)
+# raw_data_extractor.extract_all()
