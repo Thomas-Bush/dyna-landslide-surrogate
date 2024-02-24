@@ -271,52 +271,135 @@ class D3PlotDataExtractor {
       return csvContent;
   
     }
-  
-    /**
+
+        /**
      * Writes a CSV string to a file.
-     * @param {string} csvContent - The CSV data
-     * @param {string} fileName - The file name
+     * @param {string} csvContent - The CSV data.
+     * @param {string} outputDirectory - The directory where the file will be written.
+     * @param {string} fileName - The file name.
      */
-    writeCSVToFile(csvContent, fileName) {
-      // Get the current working directory
-      var cwd = GetCurrentDirectory();
-      
-      // Extract the folder name from the current working directory
-      // Assuming the directory path is separated by '/' or '\\'
-      var folderName = cwd.split(/[/\\]/).pop();
-      
-      // Append folder name to file name
-      fileName = folderName + "_" + fileName;
+    writeCSVToFile(csvContent, outputDirectory, fileName) {
+      // Ensure the output directory ends with a slash
+      var directoryWithSlash = outputDirectory.replace(/\\/g, '/'); // Normalize backslashes to forward slashes
+      if (!directoryWithSlash.endsWith('/')) {
+        directoryWithSlash += '/';
+      }
 
-      // Create file in the RAW_DATA directory with the modified file name
-      var file = new File(`RAW_DATA/${fileName}`, File.WRITE);
+      // Create the full file path
+      var filePath = directoryWithSlash + fileName;
 
-      // Write content 
+      // Create the file with the specified file path
+      var file = new File(filePath, File.WRITE);
+
+      // Write content
       file.Writeln(csvContent);
 
       // Close file
       file.Close();
     }
-  
+
     /**
      * Runs all data extraction methods and writes CSV files.
      */
     runAllExtractions() {
-  
-      // Create output directory if needed  
-      if (!File.IsDirectory("RAW_DATA")) {
-        File.Mkdir("RAW_DATA");
-      }
-  
-      // Extract and write all CSVs
-      this.writeCSVToFile(this.extractNodes(), "nodes.csv");
-      this.writeCSVToFile(this.extractSolids(), "solids.csv");
-      this.writeCSVToFile(this.extractShells(), "shells.csv");
-      this.writeCSVToFile(this.extractStates(), "states.csv");
-      this.writeCSVToFile(this.extractNodalVelocities(), "nodal_velocities.csv");
-      this.writeCSVToFile(this.extractSolidThicknesses(), "solid_thicknesses.csv");
-  
+      // Define the absolute output directory for extractions
+      var baseDirectory = GetCurrentDirectory(); // Get the current working directory as base
+      var outputDirectory = baseDirectory + "/../../02_extract"; // Append the specific folder name to the base path
+      
+      // Split the base directory string into an array of folder names
+      var pathSegments = baseDirectory.split(/[/\\]/);
+      
+      // The model ID is two levels up from the '01_d3plot' directory
+      var modelIdIndex = pathSegments.length - 3;
+      var folderName = pathSegments[modelIdIndex];
+
+      // Create the "02_extract" directory if it doesn't exist
+      // Note: Assuming File.Mkdir takes care of checking if the directory exists
+      File.Mkdir(outputDirectory);
+      
+      // Continue with the extraction and writing of all CSV files to the "02_extract" directory
+      // Use folderName as part of the file names
+      this.writeCSVToFile(this.extractNodes(), outputDirectory, folderName + "_nodes.csv");
+      this.writeCSVToFile(this.extractSolids(), outputDirectory, folderName + "_solids.csv");
+      this.writeCSVToFile(this.extractShells(), outputDirectory, folderName + "_shells.csv");
+      this.writeCSVToFile(this.extractStates(), outputDirectory, folderName + "_states.csv");
+      this.writeCSVToFile(this.extractNodalVelocities(), outputDirectory, folderName + "_nodal_velocities.csv");
+      this.writeCSVToFile(this.extractSolidThicknesses(), outputDirectory, folderName + "_solid_thicknesses.csv");
     }
+
+    // /**
+    //  * Runs all data extraction methods and writes CSV files.
+    //  */
+    // runAllExtractions() {
+    //   // Define the absolute output directory for extractions
+    //   var baseDirectory = GetCurrentDirectory(); // Get the current working directory as base
+    //   var outputDirectory = baseDirectory + "/../../02_extract"; // Append the specific folder name to the base path
+      
+    //   // Split the base directory string into an array of folder names
+    //   var pathSegments = baseDirectory.split(/[/\\]/);
+      
+    //   // Find the index of the '01_d3plot' directory
+    //   var d3plotIndex = pathSegments.indexOf('01_d3plot');
+      
+    //   // Ensure that '01_d3plot' was found and that there are enough segments before it for the model ID
+    //   if (d3plotIndex >= 2) {
+    //     // The model ID should be two levels up from '01_d3plot'
+    //     var modelIdIndex = d3plotIndex - 2;
+    //     var folderName = pathSegments[modelIdIndex];
+    //   } else {
+    //     console.error("The directory path does not contain '01_d3plot' or is too short.");
+    //     return;
+    //   }
+      
+    //   // Validate that we have a folderName
+    //   if (!folderName) {
+    //     console.error("Model ID could not be determined from the directory path.");
+    //     return;
+    //   }
+      
+    //   // Create the "02_extract" directory if it doesn't exist
+    //   var success = File.Mkdir(outputDirectory);
+    //   if (!success) {
+    //     // Handle the error appropriately, such as logging or throwing an error
+    //     console.error("Failed to create directory: " + outputDirectory);
+    //     return; // Exit the function if directory creation failed
+    //   }
+      
+    //   // Continue with the extraction and writing of all CSV files to the "02_extract" directory
+    //   // Use folderName as part of the file names
+    //   this.writeCSVToFile(this.extractNodes(), outputDirectory, folderName + "_nodes.csv");
+    //   this.writeCSVToFile(this.extractSolids(), outputDirectory, folderName + "_solids.csv");
+    //   this.writeCSVToFile(this.extractShells(), outputDirectory, folderName + "_shells.csv");
+    //   this.writeCSVToFile(this.extractStates(), outputDirectory, folderName + "_states.csv");
+    //   this.writeCSVToFile(this.extractNodalVelocities(), outputDirectory, folderName + "_nodal_velocities.csv");
+    //   this.writeCSVToFile(this.extractSolidThicknesses(), outputDirectory, folderName + "_solid_thicknesses.csv");
+    // }
+
+
+
+
+
+
+
+
+
+
+    // runAllExtractions() {
+  
+    //   // Create output directory if needed  
+    //   if (!File.IsDirectory("RAW_DATA")) {
+    //     File.Mkdir("RAW_DATA");
+    //   }
+  
+    //   // Extract and write all CSVs
+    //   this.writeCSVToFile(this.extractNodes(), "nodes.csv");
+    //   this.writeCSVToFile(this.extractSolids(), "solids.csv");
+    //   this.writeCSVToFile(this.extractShells(), "shells.csv");
+    //   this.writeCSVToFile(this.extractStates(), "states.csv");
+    //   this.writeCSVToFile(this.extractNodalVelocities(), "nodal_velocities.csv");
+    //   this.writeCSVToFile(this.extractSolidThicknesses(), "solid_thicknesses.csv");
+  
+    // }
   
   }
 

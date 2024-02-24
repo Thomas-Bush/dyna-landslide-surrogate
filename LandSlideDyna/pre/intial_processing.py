@@ -543,7 +543,7 @@ class ModelMetadata:
         self.metadata['max_x_value'] = np.max(self.data.get('elevation_array_dict')['x_values'])
         self.metadata['min_y_value'] = np.min(self.data.get('elevation_array_dict')['y_values'])
         self.metadata['max_y_value'] = np.max(self.data.get('elevation_array_dict')['y_values'])
-        self.metadata['min_z_value'] = np.max(self.data.get('elevation_array_dict')['z_values'])
+        self.metadata['min_z_value'] = np.min(self.data.get('elevation_array_dict')['z_values'])
         self.metadata['max_z_value'] = np.max(self.data.get('elevation_array_dict')['z_values'])
         self.metadata['grid_resolution_x'] = self.calculate_grid_resolution(self.data.get('elevation_array_dict')['x_values'])
         self.metadata['grid_resolution_y'] = self.calculate_grid_resolution(self.data.get('elevation_array_dict')['y_values'])     
@@ -593,8 +593,8 @@ class ModelMetadata:
 
 
 
-class DataPipeline:
-    def __init__(self, model_id, raw_data_path, processed_data_path=None):
+class InitialProcessPipeline:
+    def __init__(self, model_id, raw_data_path, processed_data_path):
         self.model_id = model_id
         self.processed_data_path = processed_data_path
 
@@ -604,6 +604,8 @@ class DataPipeline:
         self.data_padder = DataPadder(self.data)  # Pad results data to match topography data
         self.array_converter = ArrayConverter(self.data)  # Convert topography & result dfs to arrays
         
+    def run(self):
+        """The main method to run the entire processing pipeline."""
         if self.processed_data_path:
             self.export_processed_data()
             self.export_metadata()
