@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# data
+data/
+
+# keeping files locally just in case
+ss/
+
 # C extensions
 *.so
 

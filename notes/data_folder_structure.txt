@@ -1,0 +1,44 @@
+root_data_dir/
+    00001/
+        01_d3plot/
+            image/
+            ptf/
+                00001.ptf
+                00001.ptf01
+                00001.ptf02
+                00001.ptf03
+				etc (for all states)
+		02_extract/
+            00001_nodal_velocities.csv
+            00001_nodes.csv
+            00001_shells.csv
+            00001_solids.csv
+            00001_solid_thicknesses.csv
+            00001_states.csv
+        03_initial_process/
+            elevation/
+                00001_elevation_x_values.npy
+                00001_elevation_y_values.npy
+                00001_elevation_z_values.npy
+            thickness/
+                00001_thickness_1.npy
+                00001_thickness_2.npy
+                00001_thickness_3.npy
+				etc (for all states)
+				
+				00001_thickness_max_value.npy
+                00001_thickness_x_values.npy
+                00001_thickness_y_values.npy
+			velocity/
+                00001_velocity_1.npy
+                00001_velocity_2.npy
+                00001_velocity_3.npy
+				etc (for all states)
+				
+				00001_velocity_max_value.npy
+                00001_velocity_x_values.npy
+                00001_velocity_y_values.npy
+	00002/
+	00003/
+	00004/
+	etc (for all models)
