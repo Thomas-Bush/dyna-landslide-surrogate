@@ -192,9 +192,16 @@ class ModelMetadata:
 
 
     def calculate_bounding_boxes(self):
-        """Calculates and stores the bounding box and its dimensions of the debris for every state."""
+        """Calculates and stores the bounding box and its dimensions of the debris for every state,
+        as well as the overall bounding box for all states."""
         # Initialize the bounding boxes metadata
         self.metadata['bounding_boxes'] = {}
+
+        # Variables to track the extremities for the overall bounding box
+        global_min_x = float('inf')
+        global_max_x = -float('inf')
+        global_min_y = float('inf')
+        global_max_y = -float('inf')
 
         # Iterate over states using keys from thickness_state_array_dict
         for state_number, thickness_array in self.data['thickness_state_array_dict'].items():
@@ -208,6 +215,12 @@ class ModelMetadata:
                 max_x = np.max(nonzero_indices[1])
                 min_y = np.min(nonzero_indices[0])
                 max_y = np.max(nonzero_indices[0])
+
+                # Update global bounding box values
+                global_min_x = min(min_x, global_min_x)
+                global_max_x = max(max_x, global_max_x)
+                global_min_y = min(min_y, global_min_y)
+                global_max_y = max(max_y, global_max_y)
 
                 # Calculate dimensions of the bounding box
                 bbox_width = max_x - min_x + 1  # +1 to include the starting index
@@ -223,6 +236,18 @@ class ModelMetadata:
             else:
                 # If no debris is present, store None or an appropriate representation
                 self.metadata['bounding_boxes'][state_number] = None
+
+        # Store the overall bounding box
+        self.metadata['overall_bounding_box'] = {
+            'min_x': global_min_x, 'max_x': global_max_x,
+            'min_y': global_min_y, 'max_y': global_max_y,
+            'width': global_max_x - global_min_x + 1,
+            'height': global_max_y - global_min_y + 1
+        }
+
+        # Calculate and store the center point for the overall bounding box
+        self.metadata['overall_bounding_box']['center_x'] = (global_min_x + global_max_x) / 2
+        self.metadata['overall_bounding_box']['center_y'] = (global_min_y + global_max_y) / 2
 
     def calculate_state_statistics(self):
         """Calculates and stores the max and average values of thickness and velocity for each state."""

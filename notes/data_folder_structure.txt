@@ -1,5 +1,6 @@
 root_data_dir/
     00001/
+    00001_metadata.json
         01_d3plot/
             image/
             ptf/

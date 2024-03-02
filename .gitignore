@@ -5,6 +5,7 @@ __pycache__/
 
 # data
 data/
+data_temp/
 
 # keeping files locally just in case
 ss/
