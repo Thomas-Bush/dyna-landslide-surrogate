@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 from functools import partial
+import gc
 
 class Data:
     def __init__(self, raw_data_path):
@@ -365,6 +366,7 @@ class ArrayConverter:
         self.data.set_processed_data(f'{state_type}_max_value_array', flattened_array)
         # Also keep the original state arrays dictionary
         self.data.set_processed_data(f'{state_type}_state_arrays_dict', state_dict)
+        gc.collect()
 
 
     def update_state_arrays(self, results_df_key, state_type):
@@ -457,6 +459,8 @@ class ArrayConverter:
 
         return elevation_array, unique_x, unique_y
 
+
+
     @staticmethod
     def dataframe_to_state_arrays(df, x_col='Solid_X', y_col='Solid_Y', state_cols_prefix='State_'):
         """
@@ -489,7 +493,7 @@ class ArrayConverter:
         state_labels = [col.replace(state_cols_prefix, '') for col in state_cols]
 
         # Initialize a list to hold the state arrays
-        state_arrays = [np.zeros((len(unique_y), len(unique_x))) for _ in state_cols]
+        state_arrays = [np.zeros((len(unique_y), len(unique_x)), dtype=np.float32) for _ in state_cols]
 
         # Fill the state arrays with the corresponding values from the DataFrame
         for _, row in df.iterrows():
@@ -515,83 +519,9 @@ class ArrayConverter:
         return max_value_array
 
 
-class ModelMetadata:
-    """Class to handle metadata about the model."""
 
-    def __init__(self, model_id, data):
-        self.metadata = {
-            'model_id': model_id,
-            'total_number_of_states': None,
-            'min_x_value': None,
-            'max_x_value': None,
-            'min_y_value': None,
-            'max_y_value': None,
-            'min_z_value': None,
-            'max_z_value': None,
-            'grid_resolution_x': None,
-            'grid_resolution_y': None,
-            'timesteps': {},
-            'average_timestep': None,
-        }
-        self.data = data
-        self.calculate_metadata()
-
-    def calculate_metadata(self):
-        """Calculate and update the metadata based on the provided data."""
-       
-        self.metadata['min_x_value'] = np.min(self.data.get('elevation_array_dict')['x_values'])
-        self.metadata['max_x_value'] = np.max(self.data.get('elevation_array_dict')['x_values'])
-        self.metadata['min_y_value'] = np.min(self.data.get('elevation_array_dict')['y_values'])
-        self.metadata['max_y_value'] = np.max(self.data.get('elevation_array_dict')['y_values'])
-        self.metadata['min_z_value'] = np.min(self.data.get('elevation_array_dict')['z_values'])
-        self.metadata['max_z_value'] = np.max(self.data.get('elevation_array_dict')['z_values'])
-        self.metadata['grid_resolution_x'] = self.calculate_grid_resolution(self.data.get('elevation_array_dict')['x_values'])
-        self.metadata['grid_resolution_y'] = self.calculate_grid_resolution(self.data.get('elevation_array_dict')['y_values'])     
-        states_df = self.data.get('states')
-        self.metadata['total_number_of_states'] = states_df.shape[0]        
-        self.metadata['average_timestep'] = self.calculate_average_timestep(states_df['State_Timestamp'])
-        self.metadata['timesteps'] = dict(zip(states_df['State_Label'], states_df['State_Timestamp']))
-        
-
-    def calculate_grid_resolution(self, values):
-        """Calculate the grid resolution based on the axis values.
-
-        Args:
-            values (list or np.array): The values along an axis.
-
-        Returns:
-            The calculated grid resolution.
-        """
-        # Assuming that 'values' is sorted and uniformly spaced
-        return np.diff(values).mean() if len(values) > 1 else None
-
-    def calculate_average_timestep(self, timestamps):
-        """Calculate the average timestep from a sequence of timestamps.
-
-        Args:
-            timestamps (pd.Series): Timestamps for each state.
-
-        Returns:
-            float: The average timestep calculated as the mean of the difference between sequential timestamps.
-        """
-        sorted_timestamps = timestamps.sort_values().values
-        if len(sorted_timestamps) > 1:
-            timestep_differences = np.diff(sorted_timestamps)
-            return np.mean(timestep_differences)
-        return None
     
     
-    
-    def save_to_json(self, file_path):
-        """Save the metadata to a JSON file.
-
-        Args:
-            file_path (str): The path to the JSON file where metadata will be saved.
-        """
-        with open(file_path, 'w') as outfile:
-            json.dump(self.metadata, outfile, indent=4)
-
-
 
 class InitialProcessPipeline:
     def __init__(self, model_id, raw_data_path, processed_data_path):
@@ -608,7 +538,6 @@ class InitialProcessPipeline:
         """The main method to run the entire processing pipeline."""
         if self.processed_data_path:
             self.export_processed_data()
-            self.export_metadata()
 
     def get_data(self, key):
         """Retrieve data using the key from the Data instance.
@@ -674,9 +603,3 @@ class InitialProcessPipeline:
         filename = f"{self.model_id}_thickness_max_value.npy"
         self._export_array(max_thickness_array, 'thickness', filename)
 
-    def export_metadata(self):
-        """Export metadata as a JSON file."""
-        metadata = ModelMetadata(self.model_id, self.data)
-        metadata_file = f"{self.model_id}_metadata.json"
-        metadata_path = os.path.join(self.processed_data_path, metadata_file)
-        metadata.save_to_json(metadata_path)

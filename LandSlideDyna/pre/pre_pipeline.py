@@ -7,6 +7,7 @@ from ptf_extractor import PTFDataExtractor
 from ptf_extractor import PTFImageExtractor
 from intial_processing import InitialProcessPipeline
 from final_processing import FinalProcessPipeline
+from metadata import ModelMetadata
 
 class PreprocessingPipeline:
     def __init__(self, model_dir, d3plot_executable, status_file=None, ):
@@ -110,6 +111,14 @@ class PreprocessingPipeline:
                 extract_path = os.path.join(model_path, '02_extract/')
                 initial_processing_pipeline = InitialProcessPipeline(model, extract_path, initial_process_path)
                 initial_processing_pipeline.run()
+
+            if not status.get("metadata", False):
+                
+                for model in os.listdir(self.model_dir):
+                    print(f"Geting metadata for model {model}.")
+                    meta = ModelMetadata(self.model_dir, model)
+                    meta.save_metadata()
+                    print(f"Finished metadata for model {model}.")
 
             if not status.get("final_process", False):
                 pass
