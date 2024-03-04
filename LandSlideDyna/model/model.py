@@ -4,101 +4,78 @@ import torch.nn.functional as F
 
 # https://github.com/milesial/Pytorch-UNet/blob/master/unet/unet_parts.py
 
-
-class ConvBlock(nn.Module):
-    """Convolutional Block consisting of two convolutional layers with Batch Normalization and ReLU activation."""
+class UNet(nn.Module):
     def __init__(self, in_channels, out_channels):
-        super(ConvBlock, self).__init__()
-        self.conv = nn.Sequential(
+        super().__init__()
+        
+        # Define the encoder path with the corresponding channels
+        self.enc1 = self.contracting_block(in_channels, 64)
+        self.enc2 = self.contracting_block(64, 128)
+        self.enc3 = self.contracting_block(128, 256)
+        self.enc4 = self.contracting_block(256, 512)
+        
+        # Define the bottleneck
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(512, 1024, kernel_size=3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(1024, 1024, kernel_size=3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.ReLU(inplace=True)
+        )
+        
+        # Define the decoder path with the corresponding channels
+        self.de3 = self.expansive_block(1024, 512, 256)
+        self.up2 = self.expansive_block(512, 256, 128)
+        self.up1 = self.expansive_block(256, 128, 64)
+        
+        # Final output layer
+        self.final_out = nn.Conv2d(128, out_channels, kernel_size=1)
+
+    def contracting_block(self, in_channels, out_channels):
+        block = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2)
         )
+        return block
 
-    def forward(self, x):
-        return self.conv(x)
-
-class DownBlock(nn.Module):
-    """Downsampling Block with a MaxPool followed by a ConvBlock."""
-    def __init__(self, in_channels, out_channels):
-        super(DownBlock, self).__init__()
-        self.maxpool_conv = nn.Sequential(
-            nn.MaxPool2d(2),
-            ConvBlock(in_channels, out_channels)
+    def expansive_block(self, in_channels, mid_channel, out_channels):
+        block = nn.Sequential(
+            nn.Conv2d(in_channels, mid_channel, kernel_size=3, padding=1),
+            nn.BatchNorm2d(mid_channel),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_channel, mid_channel, kernel_size=3, padding=1),
+            nn.BatchNorm2d(mid_channel),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(mid_channel, out_channels, kernel_size=3, stride=2, 
+                               padding=1, output_padding=1)
         )
+        return block
 
     def forward(self, x):
-        return self.maxpool_conv(x)
+        # Encoder
+        x1 = self.down1(x)
+        x2 = self.down2(x1)
+        x3 = self.down3(x2)
+        x4 = self.down4(x3)
+        
+        # Bottleneck
+        x5 = self.bottleneck(x4)
+        
+        # Decoder with skip connections
+        x = self.up3(torch.cat([x5, x4], 1))
+        x = self.up2(torch.cat([x, x3], 1))
+        x = self.up1(torch.cat([x, x2], 1))
+        
+        # Final output layer
+        out = self.final_out(torch.cat([x, x1], 1))
+        return out
 
-class UpBlock(nn.Module):
-    """Upsampling Block with a ConvTranspose2d followed by a ConvBlock."""
-    def __init__(self, in_channels, out_channels, bilinear=True):
-        super(UpBlock, self).__init__()
-
-        if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-            self.conv = ConvBlock(in_channels, out_channels, in_channels // 2)
-        else:
-            self.up = nn.ConvTranspose2d(in_channels , in_channels // 2, kernel_size=2, stride=2)
-            self.conv = ConvBlock(in_channels, out_channels)
-
-    def forward(self, x1, x2):
-        x1 = self.up(x1)
-        # Input is CHW
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
-
-        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
-                        diffY // 2, diffY - diffY // 2])
-        x = torch.cat([x2, x1], dim=1)
-        return self.conv(x)
-
-class OutBlock(nn.Module):
-    """Output Convolution Block to generate the final output."""
-    def __init__(self, in_channels, out_channels):
-        super(OutBlock, self).__init__()
-        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=1)
-
-    def forward(self, x):
-        return self.conv(x)
-
-##########################
-# TODO DOUBLE CHECK THIS #
-##########################
-    
-class UNet(nn.Module):
-    """U-Net architecture for feature extraction."""
-    def __init__(self, n_channels, n_classes):
-        super(UNet, self).__init__()
-        self.n_channels = n_channels
-        self.n_classes = n_classes
-
-        self.inc = ConvBlock(n_channels, 64)
-        self.down1 = DownBlock(64, 128)
-        self.down2 = DownBlock(128, 256)
-        self.down3 = DownBlock(256, 512)
-        self.down4 = DownBlock(512, 1024)
-        self.up1 = UpBlock(1024, 512)
-        self.up2 = UpBlock(512, 256)
-        self.up3 = UpBlock(256, 128)
-        self.up4 = UpBlock(128, 64)
-        self.outc = OutBlock(64, n_classes)
-
-    def forward(self, x):
-        x1 = self.inc(x)
-        x2 = self.down1(x1)
-        x3 = self.down2(x2)
-        x4 = self.down3(x3)
-        x5 = self.down4(x4)
-        x = self.up1(x5, x4)
-        x = self.up2(x, x3)
-        x = self.up3(x, x2)
-        x = self.up4(x, x1)
-        logits = self.outc(x)
-        return logits
 
 class CNNLSTMModel(nn.Module):
     """CNN-LSTM model for learning the sequence of landslide debris travel."""
