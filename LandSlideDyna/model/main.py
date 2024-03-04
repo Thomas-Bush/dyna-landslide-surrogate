@@ -1,35 +1,42 @@
-from dataset import VariableLengthDataset, split_dataset, collate_fn
-from model import CNNLSTMModel
+import torch
+from model import CNNLSTM  # Replace with your actual model class name if different
+from dataset import DebrisFlowDataset  # Replace with your actual dataset class name if different
 from train import Trainer
+from torch.optim import Adam
 from torch.utils.data import DataLoader
-import torch.nn as nn
-import torch.optim as optim
 
 def main():
-    # Load and split the dataset
-    dataset = VariableLengthDataset('path/to/data')
-    train_dataset, val_dataset, test_dataset = split_dataset(dataset)
+    # Set device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Create DataLoaders
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn)  # For later use
+    # Load datasets
+    train_dataset = DebrisFlowDataset('path/to/train/data')
+    val_dataset = DebrisFlowDataset('path/to/val/data')
 
-    # Instantiate the model
-    model = CNNLSTMModel()
+    # Define model
+    model = CNNLSTM()  # Replace CNNLSTM with your actual model class name
 
-    # Define the loss function and the optimizer
-    criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters())
+    # Check if multiple GPUs are available and wrap the model using nn.DataParallel
+    if torch.cuda.device_count() > 1:
+        print(f"Let's use {torch.cuda.device_count()} GPUs!")
+        # This will wrap the model for use with multiple GPUs
+        model = torch.nn.DataParallel(model)
 
-    # Initialize the Trainer
-    trainer = Trainer(model, train_loader, val_loader, criterion, optimizer)
+    model = model.to(device)
+
+    # Define loss function and optimizer
+    criterion = torch.nn.MSELoss()  # Choose the appropriate loss function for your problem
+    optimizer = Adam(model.parameters(), lr=1e-3)
+
+    # Initialize Trainer
+    batch_size = 32  # Define your batch size
+    trainer = Trainer(model=model, train_dataset=train_dataset, val_dataset=val_dataset,
+                      batch_size=batch_size, criterion=criterion, optimizer=optimizer, 
+                      learning_rate=1e-3)
 
     # Train the model
-    trainer.train(num_epochs=10)
+    num_epochs = 10  # Set the number of epochs you wish to train for
+    trainer.train(num_epochs)
 
-    # After training, you can evaluate the model on the test dataset
-    # test_loss = trainer.validate(test_loader)  # This requires adding test_loader to the validate method
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
