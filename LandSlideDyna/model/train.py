@@ -1,99 +1,83 @@
 import torch
 from torch.utils.data import DataLoader
-from torch.nn.utils.rnn import pack_padded_sequence
-
-from dataset import debris_collate_fn
 
 class Trainer:
-    """Handles the training process for the CNN-LSTM model."""
+    """A trainer class for the CNN-LSTM model."""
 
-    def __init__(self, model, train_dataset, val_dataset, batch_size, criterion, optimizer, learning_rate):
-        """Initializes the Trainer with model, datasets, batch size, loss function, optimizer, and learning rate."""
-        self.model = model
-        self.train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=debris_collate_fn)
-        self.val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=debris_collate_fn)
-        self.criterion = criterion
-        self.optimizer = optimizer(model.parameters(), lr=learning_rate)
-
-    def train_epoch(self):
-        """Trains the model for one epoch."""
-        self.model.train()  # Set the model to training mode
-        epoch_loss = 0.0
-        for batch in self.train_loader:
-            images = batch['images']
-            sequence_lengths = batch['sequence_lengths']
-            targets = ... # You need to define how targets are retrieved or computed from the batch
-
-            self.optimizer.zero_grad()  # Zero the parameter gradients
-
-            # Packing the padded sequences
-            packed_images = pack_padded_sequence(images, sequence_lengths.cpu(), batch_first=True, enforce_sorted=False)
-            outputs = self.model(packed_images)  # Forward pass
-
-            loss = self.criterion(outputs, targets)  # Compute the loss
-            loss.backward()  # Backward pass
-            self.optimizer.step()  # Optimize the model
-
-            epoch_loss += loss.item()
-        return epoch_loss / len(self.train_loader)
-
-    def validate(self):
-        """Validates the model on the validation dataset."""
-        self.model.eval()  # Set the model to evaluation mode
-        val_loss = 0.0
-        with torch.no_grad():  # Disable gradient computation
-            for batch in self.val_loader:
-                images = batch['images']
-                sequence_lengths = batch['sequence_lengths']
-                targets = ... # You need to define how targets are retrieved or computed from the batch
-
-                # Packing the padded sequences
-                packed_images = pack_padded_sequence(images, sequence_lengths.cpu(), batch_first=True, enforce_sorted=False)
-                outputs = self.model(packed_images)
-                loss = self.criterion(outputs, targets)
-                val_loss += loss.item()
-        return val_loss / len(self.val_loader)
-
-    def train(self, num_epochs):
-        """Trains the model for a specified number of epochs."""
-        for epoch in range(num_epochs):
-            train_loss = self.train_epoch()  # Train the model for one epoch
-            val_loss = self.validate()  # Validate the model
-            print(f'Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
-
-    def evaluate(self, test_dataset):
+    def __init__(self, model, train_dataloader, val_dataloader, criterion, optimizer, device):
         """
-        Evaluates the model on the test dataset.
+        Initializes the Trainer.
 
         Args:
-            test_dataset (torch.utils.data.Dataset): The test dataset.
-
-        Returns:
-            float: The average loss on the test dataset.
-            Any: The performance metric(s) for the model on the test dataset.
+            model: The CNN-LSTM model to be trained.
+            train_dataloader: DataLoader for the training data.
+            val_dataloader: DataLoader for the validation data.
+            criterion: Loss function.
+            optimizer: Optimizer for the model parameters.
+            device: The device to run the training on ('cuda' or 'cpu').
         """
-        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, collate_fn=debris_collate_fn)
+        self.model = model
+        self.train_dataloader = train_dataloader
+        self.val_dataloader = val_dataloader
+        self.criterion = criterion
+        self.optimizer = optimizer
+        self.device = device
+
+    def train_one_epoch(self):
+        """Train the model for one epoch."""
+        self.model.train()  # Set the model to training mode
+        running_loss = 0.0
+        for inputs, labels in self.train_dataloader:
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+            # Zero the parameter gradients
+            self.optimizer.zero_grad()
+
+            # Forward + backward + optimize
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+
+            running_loss += loss.item() * inputs.size(0)
+
+        epoch_loss = running_loss / len(self.train_dataloader.dataset)
+        return epoch_loss
+
+    def validate(self):
+        """Validate the model."""
         self.model.eval()  # Set the model to evaluation mode
-        test_loss = 0.0
-        # Define additional metrics here if needed
+        running_loss = 0.0
+        with torch.no_grad():
+            for inputs, labels in self.val_dataloader:
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-        with torch.no_grad():  # Disable gradient computation
-            for batch in test_loader:
-                images = batch['images']
-                sequence_lengths = batch['sequence_lengths']
-                targets = batch['targets']  # Assuming that you have targets in your batch dictionary
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
 
-                # Packing the padded sequences
-                packed_images = pack_padded_sequence(images, sequence_lengths.cpu(), batch_first=True, enforce_sorted=False)
-                outputs = self.model(packed_images)
+                running_loss += loss.item() * inputs.size(0)
 
-                loss = self.criterion(outputs, targets)
-                test_loss += loss.item()
+        epoch_loss = running_loss / len(self.val_dataloader.dataset)
+        return epoch_loss
 
-                # Calculate additional metrics here if needed
+    def train(self, num_epochs):
+        """Run the training process.
 
-        avg_test_loss = test_loss / len(test_loader)
-        # Calculate and return the final metrics here
+        Args:
+            num_epochs: Number of epochs to train the model.
+        """
+        for epoch in range(num_epochs):
+            train_loss = self.train_one_epoch()
+            val_loss = self.validate()
 
-        # For demonstration, let's return the average loss
-        return avg_test_loss
+            # Print epoch summary
+            print(f'Epoch {epoch + 1}/{num_epochs}')
+            print(f'Train Loss: {train_loss:.4f}')
+            print(f'Validation Loss: {val_loss:.4f}')
+
+# Example usage:
+# Assume you have created instances of the model, criterion, optimizer, and dataloaders.
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# trainer = Trainer(model=model, train_dataloader=train_dataloader, val_dataloader=val_dataloader,
+#                   criterion=criterion, optimizer=optimizer, device=device)
+# trainer.train(num_epochs=25)
