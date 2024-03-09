@@ -32,13 +32,22 @@ root_data_dir/
                 00001_thickness_y_values.npy
 			velocity/
                 00001_velocity_1.npy
+
+        04_FinalProcessedData/
+            elevation/
+                00001_elevation.npy
+
+            thickness/
+                00001_thickness_1.npy
+                00001_thickness_2.npy
+                00001_thickness_3.npy
+				etc (for all states)
+
+			velocity/
+                00001_velocity_1.npy
                 00001_velocity_2.npy
                 00001_velocity_3.npy
 				etc (for all states)
-				
-				00001_velocity_max_value.npy
-                00001_velocity_x_values.npy
-                00001_velocity_y_values.npy
 	00002/
 	00003/
 	00004/
