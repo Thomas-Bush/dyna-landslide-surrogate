@@ -3,6 +3,214 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 #######################################
+## SMALL MOST BASIC IMPLEMENTATION OF UNET ##
+#######################################
+
+class SmallBasicUNet(nn.Module):
+    """A basic U-Net architecture for semantic segmentation.
+
+    The U-Net is composed of an encoder (contracting path), a bottleneck, and a decoder (expansive path),
+    with skip connections between the encoder and decoder blocks.
+    """
+    
+    def __init__(self, in_channels, out_channels):
+        """Initializes the BasicUNet with the given number of input and output channels."""
+        super(SmallBasicUNet, self).__init__()
+
+        # Encoder
+        self.enc1 = self.encoder_block(in_channels, 8)
+        self.enc2 = self.encoder_block(8, 16)
+        self.enc3 = self.encoder_block(16, 32)
+        self.enc4 = self.encoder_block(32, 64)
+
+        # Bottleneck
+        self.bottleneck = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.ReLU()
+        )
+
+        # Decoder
+        self.dec1 = self.decoder_block(128 + 64, 64)  # Adjusted for concatenated channels
+        self.dec2 = self.decoder_block(64 + 32, 32)   # Adjusted for concatenated channels
+        self.dec3 = self.decoder_block(32 + 16, 16)   # Adjusted for concatenated channels
+        self.dec4 = self.decoder_block(16 + 8, 8)     # Adjusted for concatenated channels
+
+        # Final output
+        self.out_conv = nn.Conv2d(8, out_channels, kernel_size=1)
+
+    def encoder_block(self, in_channels, out_channels):
+        """Defines an encoder block with Convolution, ReLU activation, and MaxPooling."""
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2)
+        )
+
+    def decoder_block(self, in_channels, out_channels):
+        """Defines a decoder block with Convolution, ReLU activation, and Upsampling."""
+        return nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        )
+
+    def forward(self, x):
+        # Encoder
+        e1 = self.enc1(x)
+        e2 = self.enc2(e1)
+        e3 = self.enc3(e2)
+        e4 = self.enc4(e3)
+
+        # Bottleneck
+        b = self.bottleneck(e4)
+
+        # Decoder with skip connections and cropping
+        d1 = self.dec1(torch.cat((self.crop(e4, b), b), dim=1))
+        d2 = self.dec2(torch.cat((self.crop(e3, d1), d1), dim=1))
+        d3 = self.dec3(torch.cat((self.crop(e2, d2), d2), dim=1))
+        d4 = self.dec4(torch.cat((self.crop(e1, d3), d3), dim=1))
+
+        # Final output
+        out = self.out_conv(d4)
+        return out
+
+    @staticmethod
+    def crop(encoder_layer, decoder_layer):
+        """Crop the encoder_layer to the size of the decoder_layer."""
+        if encoder_layer.size()[2:] != decoder_layer.size()[2:]:
+            ds_height = decoder_layer.size(2)
+            ds_width = decoder_layer.size(3)
+            encoder_layer = F.interpolate(encoder_layer, size=(ds_height, ds_width), mode='nearest')
+        return encoder_layer
+
+# class SmallBasicUNet(nn.Module):
+#     """A basic U-Net architecture for semantic segmentation.
+
+#     The U-Net is composed of an encoder (contracting path), a bottleneck, and a decoder (expansive path),
+#     with skip connections between the encoder and decoder blocks.
+
+#     Attributes:
+#         enc1: First encoder block.
+#         enc2: Second encoder block.
+#         enc3: Third encoder block.
+#         enc4: Fourth encoder block.
+#         bottleneck: The bottleneck part of the network.
+#         dec1: First decoder block.
+#         dec2: Second decoder block.
+#         dec3: Third decoder block.
+#         dec4: Fourth decoder block.
+#         out_conv: Final output convolutional layer.
+#     """
+
+#     def __init__(self, in_channels, out_channels):
+#         """Initializes the BasicUNet with the given number of input and output channels.
+
+#         Args:
+#             in_channels: The number of input channels.
+#             out_channels: The number of output channels.
+#         """
+#         super(SmallBasicUNet, self).__init__()
+
+#         # Encoder
+#         self.enc1 = self.encoder_block(in_channels, 8)
+#         self.enc2 = self.encoder_block(8, 16)
+#         self.enc3 = self.encoder_block(16, 32)
+#         self.enc4 = self.encoder_block(32, 64)
+
+#         # Bottleneck
+#         self.bottleneck = nn.Sequential(
+#             nn.Conv2d(64, 128, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2d(128, 128, kernel_size=3, padding=1),
+#             nn.ReLU()
+#         )
+
+#         # Decoder
+#         self.dec1 = self.decoder_block(128, 64)
+#         self.dec2 = self.decoder_block(64, 32)
+#         self.dec3 = self.decoder_block(32, 16)
+#         self.dec4 = self.decoder_block(16, 8)
+
+#         # Final output
+#         self.out_conv = nn.Conv2d(8, out_channels, kernel_size=1)
+
+#     def encoder_block(self, in_channels, out_channels):
+#         """Defines an encoder block with Convolution, ReLU activation, and MaxPooling.
+
+#         Args:
+#             in_channels: The number of input channels for the block.
+#             out_channels: The number of output channels for the block.
+
+#         Returns:
+#             An nn.Sequential module comprising the encoder block layers.
+#         """
+#         return nn.Sequential(
+#             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.MaxPool2d(kernel_size=2, stride=2)
+#         )
+
+#     def decoder_block(self, in_channels, out_channels):
+#         """Defines a decoder block with Convolution, ReLU activation, and Upsampling.
+
+#         Args:
+#             in_channels: The number of input channels for the block.
+#             out_channels: The number of output channels for the block.
+
+#         Returns:
+#             An nn.Sequential module comprising the decoder block layers.
+#         """
+#         return nn.Sequential(
+#             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+#             nn.ReLU(),
+#             nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+#         )
+
+#     def forward(self, x):
+#         """Defines the forward pass of the BasicUNet.
+
+#         Args:
+#             x: The input tensor.
+
+#         Returns:
+#             The output tensor after passing through the U-Net.
+#         """
+#         # Encoder
+#         e1 = self.enc1(x)
+#         e2 = self.enc2(e1)
+#         e3 = self.enc3(e2)
+#         e4 = self.enc4(e3)
+
+#         # Bottleneck
+#         b = self.bottleneck(e4)
+
+#         # Decoder
+#         d1 = self.dec1(b)
+#         d1 = torch.cat((d1, e4), dim=1)  # Corrected: Concatenate after each decoder block
+        
+#         d2 = self.dec2(d1)
+#         d2 = torch.cat((d2, e3), dim=1)  # Corrected: Concatenate after each decoder block
+        
+#         d3 = self.dec3(d2)
+#         d3 = torch.cat((d3, e2), dim=1)  # Corrected: Concatenate after each decoder block
+        
+#         d4 = self.dec4(d3)
+#         d4 = torch.cat((d4, e1), dim=1)  # Corrected: Concatenate after each decoder block
+        
+#         out = self.out_conv(d4)
+
+#         return out
+
+
+
+
+#######################################
 ## MOST BASIC IMPLEMENTATION OF UNET ##
 #######################################
 
@@ -406,27 +614,35 @@ class UNet(UNetBase):
 
 
 class CNNLSTM(nn.Module):
-    """CNN-LSTM model for learning the sequence of landslide debris travel."""
-    def __init__(self, in_channels, lstm_hidden_size, lstm_layers=1, n_classes=1):
+    def __init__(self, in_channels, lstm_hidden_size, lstm_layers=1, n_classes=1, image_size=(512, 512)):
         super(CNNLSTM, self).__init__()
-        self.unet = BasicUNet(in_channels=in_channels, out_channels=n_classes)
-        self.lstm = nn.LSTM(input_size=512*512,  # Adjust this line if the feature map size changes
-                             hidden_size=lstm_hidden_size, 
-                             num_layers=lstm_layers, 
-                             batch_first=True)
+        self.unet = SmallBasicUNet(in_channels=in_channels, out_channels=n_classes)
+        self.lstm_hidden_size = lstm_hidden_size
+        self.lstm_layers = lstm_layers
+        self.n_classes = n_classes
+
+        # Calculate the number of features for LSTM input
+        self.num_features = image_size[0] * image_size[1] * n_classes
+        self.lstm = nn.LSTM(input_size=self.num_features,
+                            hidden_size=lstm_hidden_size,
+                            num_layers=lstm_layers,
+                            batch_first=True)
         self.final_fc = nn.Linear(lstm_hidden_size, n_classes)
 
     def forward(self, x):
         batch_size, timesteps, C, H, W = x.size()
-        # Flatten the timesteps into the batch dimension
-        c_in = x.view(batch_size * timesteps, C, H, W)
-        c_out = self.unet(c_in)
-        # Assuming the output size of U-Net is (batch_size*timesteps, n_classes, H, W)
-        # where H = W = 512 and n_classes is the number of output channels from the U-Net
-
-        # Flatten the output for the LSTM
-        # Ensure that the features are correctly reshaped for the LSTM
+        # Process each time step through U-Net
+        c_out = []
+        for t in range(timesteps):
+            c_out_t = self.unet(x[:, t])
+            c_out.append(c_out_t)
+        # Stack the outputs for each time step
+        c_out = torch.stack(c_out, dim=1)
+        # Flatten the U-Net output for the LSTM, preserving the temporal sequence
         r_out = c_out.view(batch_size, timesteps, -1)
+
+        # Optimize memory layout of LSTM weights
+        self.lstm.flatten_parameters()
 
         # Pass features through LSTM
         lstm_out, (h_n, c_n) = self.lstm(r_out)
@@ -434,6 +650,8 @@ class CNNLSTM(nn.Module):
         final_output = self.final_fc(lstm_out[:, -1])
         return final_output
 
+# Example usage
+# model = CNNLSTM(in_channels=3, lstm_hidden_size=256, lstm_layers=2, n_classes=1, image_size=(512, 512))
 # class CNNLSTM(nn.Module):
 #     """CNN-LSTM model for learning the sequence of landslide debris travel."""
 #     def __init__(self, in_channels, lstm_hidden_size, lstm_layers=1, n_classes=1):

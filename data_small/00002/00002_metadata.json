@@ -1,0 +1,917 @@
+{
+    "min_x_value": 828233.38,
+    "max_x_value": 828361.38,
+    "min_y_value": 839610.75,
+    "max_y_value": 839782.75,
+    "min_z_value": 5.53,
+    "max_z_value": 74.74,
+    "x_dimension": 128.0,
+    "y_dimension": 172.0,
+    "z_dimension": 69.21,
+    "grid_resolution_x": 1.0,
+    "grid_resolution_y": 1.0,
+    "total_number_of_states": 36,
+    "average_timestep": 0.4856788090297154,
+    "timesteps": {
+        "1": 0.0,
+        "2": 0.0,
+        "3": 0.4986548125743866,
+        "4": 0.9996496438980104,
+        "5": 1.4995793104171753,
+        "6": 1.9988932609558103,
+        "7": 2.4987587928771973,
+        "8": 2.9988269805908203,
+        "9": 3.4987735748291016,
+        "10": 3.9996938705444336,
+        "11": 4.499686241149902,
+        "12": 4.999445915222168,
+        "13": 5.499658584594727,
+        "14": 5.999537944793701,
+        "15": 6.499963283538818,
+        "16": 6.999573707580566,
+        "17": 7.4999189376831055,
+        "18": 7.999396800994873,
+        "19": 8.499348640441895,
+        "20": 8.999861717224121,
+        "21": 9.49980640411377,
+        "22": 9.99921417236328,
+        "23": 10.49947738647461,
+        "24": 10.999335289001465,
+        "25": 11.4999418258667,
+        "26": 11.999274253845217,
+        "27": 12.499347686767578,
+        "28": 12.999390602111816,
+        "29": 13.499277114868164,
+        "30": 13.999471664428713,
+        "31": 14.49903392791748,
+        "32": 14.999337196350098,
+        "33": 15.499324798583984,
+        "34": 15.999167442321776,
+        "35": 16.49997329711914,
+        "36": 16.99875831604004
+    },
+    "empty_states": {
+        "1": true,
+        "2": false,
+        "3": false,
+        "4": false,
+        "5": false,
+        "6": false,
+        "7": false,
+        "8": false,
+        "9": false,
+        "10": false,
+        "11": false,
+        "12": false,
+        "13": false,
+        "14": false,
+        "15": false,
+        "16": false,
+        "17": false,
+        "18": false,
+        "19": false,
+        "20": false,
+        "21": false,
+        "22": false,
+        "23": false,
+        "24": false,
+        "25": false,
+        "26": false,
+        "27": false,
+        "28": false,
+        "29": false,
+        "30": false,
+        "31": false,
+        "32": false,
+        "33": false,
+        "34": false,
+        "35": false,
+        "36": false
+    },
+    "bounding_boxes": {
+        "1": "None",
+        "2": {
+            "min_x": 18,
+            "max_x": 30,
+            "min_y": 141,
+            "max_y": 152,
+            "width": 13,
+            "height": 12,
+            "area": 156
+        },
+        "3": {
+            "min_x": 17,
+            "max_x": 30,
+            "min_y": 141,
+            "max_y": 152,
+            "width": 14,
+            "height": 12,
+            "area": 168
+        },
+        "4": {
+            "min_x": 17,
+            "max_x": 30,
+            "min_y": 141,
+            "max_y": 153,
+            "width": 14,
+            "height": 13,
+            "area": 182
+        },
+        "5": {
+            "min_x": 17,
+            "max_x": 30,
+            "min_y": 141,
+            "max_y": 153,
+            "width": 14,
+            "height": 13,
+            "area": 182
+        },
+        "6": {
+            "min_x": 17,
+            "max_x": 30,
+            "min_y": 141,
+            "max_y": 153,
+            "width": 14,
+            "height": 13,
+            "area": 182
+        },
+        "7": {
+            "min_x": 17,
+            "max_x": 30,
+            "min_y": 140,
+            "max_y": 153,
+            "width": 14,
+            "height": 14,
+            "area": 196
+        },
+        "8": {
+            "min_x": 17,
+            "max_x": 31,
+            "min_y": 138,
+            "max_y": 152,
+            "width": 15,
+            "height": 15,
+            "area": 225
+        },
+        "9": {
+            "min_x": 17,
+            "max_x": 33,
+            "min_y": 135,
+            "max_y": 152,
+            "width": 17,
+            "height": 18,
+            "area": 306
+        },
+        "10": {
+            "min_x": 17,
+            "max_x": 34,
+            "min_y": 131,
+            "max_y": 152,
+            "width": 18,
+            "height": 22,
+            "area": 396
+        },
+        "11": {
+            "min_x": 17,
+            "max_x": 36,
+            "min_y": 127,
+            "max_y": 152,
+            "width": 20,
+            "height": 26,
+            "area": 520
+        },
+        "12": {
+            "min_x": 18,
+            "max_x": 38,
+            "min_y": 123,
+            "max_y": 152,
+            "width": 21,
+            "height": 30,
+            "area": 630
+        },
+        "13": {
+            "min_x": 18,
+            "max_x": 41,
+            "min_y": 119,
+            "max_y": 151,
+            "width": 24,
+            "height": 33,
+            "area": 792
+        },
+        "14": {
+            "min_x": 18,
+            "max_x": 43,
+            "min_y": 116,
+            "max_y": 151,
+            "width": 26,
+            "height": 36,
+            "area": 936
+        },
+        "15": {
+            "min_x": 18,
+            "max_x": 46,
+            "min_y": 112,
+            "max_y": 151,
+            "width": 29,
+            "height": 40,
+            "area": 1160
+        },
+        "16": {
+            "min_x": 18,
+            "max_x": 48,
+            "min_y": 108,
+            "max_y": 150,
+            "width": 31,
+            "height": 43,
+            "area": 1333
+        },
+        "17": {
+            "min_x": 18,
+            "max_x": 50,
+            "min_y": 104,
+            "max_y": 150,
+            "width": 33,
+            "height": 47,
+            "area": 1551
+        },
+        "18": {
+            "min_x": 18,
+            "max_x": 52,
+            "min_y": 101,
+            "max_y": 150,
+            "width": 35,
+            "height": 50,
+            "area": 1750
+        },
+        "19": {
+            "min_x": 18,
+            "max_x": 55,
+            "min_y": 98,
+            "max_y": 150,
+            "width": 38,
+            "height": 53,
+            "area": 2014
+        },
+        "20": {
+            "min_x": 18,
+            "max_x": 59,
+            "min_y": 95,
+            "max_y": 149,
+            "width": 42,
+            "height": 55,
+            "area": 2310
+        },
+        "21": {
+            "min_x": 18,
+            "max_x": 63,
+            "min_y": 92,
+            "max_y": 149,
+            "width": 46,
+            "height": 58,
+            "area": 2668
+        },
+        "22": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 149,
+            "width": 47,
+            "height": 60,
+            "area": 2820
+        },
+        "23": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 149,
+            "width": 47,
+            "height": 60,
+            "area": 2820
+        },
+        "24": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 148,
+            "width": 47,
+            "height": 59,
+            "area": 2773
+        },
+        "25": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 148,
+            "width": 47,
+            "height": 59,
+            "area": 2773
+        },
+        "26": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 147,
+            "width": 47,
+            "height": 58,
+            "area": 2726
+        },
+        "27": {
+            "min_x": 19,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 146,
+            "width": 47,
+            "height": 57,
+            "area": 2679
+        },
+        "28": {
+            "min_x": 24,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 142,
+            "width": 42,
+            "height": 53,
+            "area": 2226
+        },
+        "29": {
+            "min_x": 24,
+            "max_x": 65,
+            "min_y": 90,
+            "max_y": 138,
+            "width": 42,
+            "height": 49,
+            "area": 2058
+        },
+        "30": {
+            "min_x": 24,
+            "max_x": 65,
+            "min_y": 89,
+            "max_y": 134,
+            "width": 42,
+            "height": 46,
+            "area": 1932
+        },
+        "31": {
+            "min_x": 24,
+            "max_x": 65,
+            "min_y": 89,
+            "max_y": 130,
+            "width": 42,
+            "height": 42,
+            "area": 1764
+        },
+        "32": {
+            "min_x": 24,
+            "max_x": 64,
+            "min_y": 89,
+            "max_y": 128,
+            "width": 41,
+            "height": 40,
+            "area": 1640
+        },
+        "33": {
+            "min_x": 24,
+            "max_x": 64,
+            "min_y": 89,
+            "max_y": 128,
+            "width": 41,
+            "height": 40,
+            "area": 1640
+        },
+        "34": {
+            "min_x": 24,
+            "max_x": 64,
+            "min_y": 90,
+            "max_y": 128,
+            "width": 41,
+            "height": 39,
+            "area": 1599
+        },
+        "35": {
+            "min_x": 24,
+            "max_x": 64,
+            "min_y": 90,
+            "max_y": 128,
+            "width": 41,
+            "height": 39,
+            "area": 1599
+        },
+        "36": {
+            "min_x": 24,
+            "max_x": 64,
+            "min_y": 90,
+            "max_y": 127,
+            "width": 41,
+            "height": 38,
+            "area": 1558
+        }
+    },
+    "state_statistics": {
+        "1": {
+            "max_thickness": 0.0,
+            "max_velocity": 0.0,
+            "avg_thickness_incl_zeroes": 0.0,
+            "avg_velocity_incl_zeroes": 0.0,
+            "avg_thickness_excl_zeroes": 0,
+            "avg_velocity_excl_zeroes": 0
+        },
+        "2": {
+            "max_thickness": 6.57,
+            "max_velocity": 0.0,
+            "avg_thickness_incl_zeroes": 0.026247255455482368,
+            "avg_velocity_incl_zeroes": 0.0,
+            "avg_thickness_excl_zeroes": 5.423703703703704,
+            "avg_velocity_excl_zeroes": 0
+        },
+        "3": {
+            "max_thickness": 6.56,
+            "max_velocity": 5.54,
+            "avg_thickness_incl_zeroes": 0.026236949410763093,
+            "avg_velocity_incl_zeroes": 0.007507281444638616,
+            "avg_thickness_excl_zeroes": 5.323,
+            "avg_velocity_excl_zeroes": 0.8864550264550264
+        },
+        "4": {
+            "max_thickness": 6.55,
+            "max_velocity": 23.85,
+            "avg_thickness_incl_zeroes": 0.0262311242550522,
+            "avg_velocity_incl_zeroes": 0.021459425550029124,
+            "avg_thickness_excl_zeroes": 4.83801652892562,
+            "avg_velocity_excl_zeroes": 2.520578947368421
+        },
+        "5": {
+            "max_thickness": 6.6,
+            "max_velocity": 20.35,
+            "avg_thickness_incl_zeroes": 0.02622664336604382,
+            "avg_velocity_incl_zeroes": 0.029668414213379936,
+            "avg_thickness_excl_zeroes": 4.57265625,
+            "avg_velocity_excl_zeroes": 3.48478947368421
+        },
+        "6": {
+            "max_thickness": 6.76,
+            "max_velocity": 19.86,
+            "avg_thickness_incl_zeroes": 0.026224851010440472,
+            "avg_velocity_incl_zeroes": 0.03635658914728682,
+            "avg_thickness_excl_zeroes": 4.536899224806201,
+            "avg_velocity_excl_zeroes": 4.270368421052631
+        },
+        "7": {
+            "max_thickness": 6.53,
+            "max_velocity": 13.37,
+            "avg_thickness_incl_zeroes": 0.026241430299771475,
+            "avg_velocity_incl_zeroes": 0.04080387148810324,
+            "avg_thickness_excl_zeroes": 4.274671532846715,
+            "avg_velocity_excl_zeroes": 4.37798076923077
+        },
+        "8": {
+            "max_thickness": 6.38,
+            "max_velocity": 21.25,
+            "avg_thickness_incl_zeroes": 0.0262311242550522,
+            "avg_velocity_incl_zeroes": 0.06793655061164136,
+            "avg_thickness_excl_zeroes": 3.681761006289308,
+            "avg_velocity_excl_zeroes": 6.3703361344537806
+        },
+        "9": {
+            "max_thickness": 6.01,
+            "max_velocity": 28.14,
+            "avg_thickness_incl_zeroes": 0.02623426087735807,
+            "avg_velocity_incl_zeroes": 0.10773491060626429,
+            "avg_thickness_excl_zeroes": 2.8840886699507386,
+            "avg_velocity_excl_zeroes": 8.233972602739724
+        },
+        "10": {
+            "max_thickness": 5.71,
+            "max_velocity": 34.29,
+            "avg_thickness_incl_zeroes": 0.02623560514406058,
+            "avg_velocity_incl_zeroes": 0.15667697271138595,
+            "avg_thickness_excl_zeroes": 2.314229249011858,
+            "avg_velocity_excl_zeroes": 10.047586206896552
+        },
+        "11": {
+            "max_thickness": 4.83,
+            "max_velocity": 49.56,
+            "avg_thickness_incl_zeroes": 0.026241430299771478,
+            "avg_velocity_incl_zeroes": 0.24327552986512527,
+            "avg_thickness_excl_zeroes": 1.9075895765472313,
+            "avg_velocity_excl_zeroes": 12.98846889952153
+        },
+        "12": {
+            "max_thickness": 3.92,
+            "max_velocity": 49.16,
+            "avg_thickness_incl_zeroes": 0.026240534121969795,
+            "avg_velocity_incl_zeroes": 0.3104749742348882,
+            "avg_thickness_excl_zeroes": 1.6000273224043717,
+            "avg_velocity_excl_zeroes": 13.830079840319362
+        },
+        "13": {
+            "max_thickness": 3.19,
+            "max_velocity": 63.77,
+            "avg_thickness_incl_zeroes": 0.026230676166151365,
+            "avg_velocity_incl_zeroes": 0.4352740063628624,
+            "avg_thickness_excl_zeroes": 1.367733644859813,
+            "avg_velocity_excl_zeroes": 16.95289703315881
+        },
+        "14": {
+            "max_thickness": 2.7399999999999998,
+            "max_velocity": 67.53,
+            "avg_thickness_incl_zeroes": 0.026236501321862258,
+            "avg_velocity_incl_zeroes": 0.5333163059551015,
+            "avg_thickness_excl_zeroes": 1.2022997946611909,
+            "avg_velocity_excl_zeroes": 18.06072837632777
+        },
+        "15": {
+            "max_thickness": 2.44,
+            "max_velocity": 63.77,
+            "avg_thickness_incl_zeroes": 0.02622529909934131,
+            "avg_velocity_incl_zeroes": 0.5915772729309495,
+            "avg_thickness_excl_zeroes": 1.0340459363957597,
+            "avg_velocity_excl_zeroes": 17.60297333333333
+        },
+        "16": {
+            "max_thickness": 2.27,
+            "max_velocity": 63.4,
+            "avg_thickness_incl_zeroes": 0.026233364699556394,
+            "avg_velocity_incl_zeroes": 0.6433897925348389,
+            "avg_thickness_excl_zeroes": 0.9676859504132233,
+            "avg_velocity_excl_zeroes": 17.29943373493976
+        },
+        "17": {
+            "max_thickness": 2.24,
+            "max_velocity": 69.73,
+            "avg_thickness_incl_zeroes": 0.026228435721647177,
+            "avg_velocity_incl_zeroes": 0.6629408074561993,
+            "avg_thickness_excl_zeroes": 0.9335566188197766,
+            "avg_velocity_excl_zeroes": 16.47533407572383
+        },
+        "18": {
+            "max_thickness": 2.14,
+            "max_velocity": 51.29,
+            "avg_thickness_incl_zeroes": 0.026232020432853876,
+            "avg_velocity_incl_zeroes": 0.6769503069408971,
+            "avg_thickness_excl_zeroes": 0.8951376146788992,
+            "avg_velocity_excl_zeroes": 15.90263157894737
+        },
+        "19": {
+            "max_thickness": 2.12,
+            "max_velocity": 69.9,
+            "avg_thickness_incl_zeroes": 0.02622709145494466,
+            "avg_velocity_incl_zeroes": 0.767826768830936,
+            "avg_thickness_excl_zeroes": 0.8868333333333333,
+            "avg_velocity_excl_zeroes": 17.326177957532863
+        },
+        "20": {
+            "max_thickness": 2.26,
+            "max_velocity": 68.51,
+            "avg_thickness_incl_zeroes": 0.026227987632746332,
+            "avg_velocity_incl_zeroes": 0.7450297979119058,
+            "avg_thickness_excl_zeroes": 0.8645937961595273,
+            "avg_velocity_excl_zeroes": 16.348898721730578
+        },
+        "21": {
+            "max_thickness": 2.6,
+            "max_velocity": 98.9,
+            "avg_thickness_incl_zeroes": 0.02622977998834969,
+            "avg_velocity_incl_zeroes": 0.7427673970515749,
+            "avg_thickness_excl_zeroes": 0.863377581120944,
+            "avg_velocity_excl_zeroes": 16.000328185328186
+        },
+        "22": {
+            "max_thickness": 3.23,
+            "max_velocity": 59.86,
+            "avg_thickness_incl_zeroes": 0.026095801406999155,
+            "avg_velocity_incl_zeroes": 0.741075413362011,
+            "avg_thickness_excl_zeroes": 0.877078313253012,
+            "avg_velocity_excl_zeroes": 15.90248076923077
+        },
+        "23": {
+            "max_thickness": 4.04,
+            "max_velocity": 51.05,
+            "avg_thickness_incl_zeroes": 0.025828740422099743,
+            "avg_velocity_incl_zeroes": 0.716602141864946,
+            "avg_thickness_excl_zeroes": 0.8867999999999999,
+            "avg_velocity_excl_zeroes": 15.944576271186438
+        },
+        "24": {
+            "max_thickness": 4.53,
+            "max_velocity": 53.86,
+            "avg_thickness_incl_zeroes": 0.024834431151140382,
+            "avg_velocity_incl_zeroes": 0.6370632253439082,
+            "avg_thickness_excl_zeroes": 0.9221797004991681,
+            "avg_velocity_excl_zeroes": 15.205711229946525
+        },
+        "25": {
+            "max_thickness": 4.45,
+            "max_velocity": 72.64,
+            "avg_thickness_incl_zeroes": 0.0235811264954967,
+            "avg_velocity_incl_zeroes": 0.5895003808755658,
+            "avg_thickness_excl_zeroes": 0.9042268041237114,
+            "avg_velocity_excl_zeroes": 14.699307262569834
+        },
+        "26": {
+            "max_thickness": 4.6899999999999995,
+            "max_velocity": 55.53,
+            "avg_thickness_incl_zeroes": 0.02214096876820361,
+            "avg_velocity_incl_zeroes": 0.5551041806694448,
+            "avg_thickness_excl_zeroes": 0.9184386617100372,
+            "avg_velocity_excl_zeroes": 14.50615925058548
+        },
+        "27": {
+            "max_thickness": 4.5200000000000005,
+            "max_velocity": 68.58,
+            "avg_thickness_incl_zeroes": 0.02076040686472196,
+            "avg_velocity_incl_zeroes": 0.5225084016668906,
+            "avg_thickness_excl_zeroes": 0.912027559055118,
+            "avg_velocity_excl_zeroes": 14.413868974042026
+        },
+        "28": {
+            "max_thickness": 5.2299999999999995,
+            "max_velocity": 63.65,
+            "avg_thickness_incl_zeroes": 0.019177756866962405,
+            "avg_velocity_incl_zeroes": 0.48692386969574764,
+            "avg_thickness_excl_zeroes": 0.9164668094218414,
+            "avg_velocity_excl_zeroes": 14.223403141361256
+        },
+        "29": {
+            "max_thickness": 5.06,
+            "max_velocity": 49.94,
+            "avg_thickness_incl_zeroes": 0.017637675314782452,
+            "avg_velocity_incl_zeroes": 0.3944163642066586,
+            "avg_thickness_excl_zeroes": 0.8805816554809843,
+            "avg_velocity_excl_zeroes": 12.345287517531554
+        },
+        "30": {
+            "max_thickness": 4.75,
+            "max_velocity": 70.68,
+            "avg_thickness_incl_zeroes": 0.015934489402697496,
+            "avg_velocity_incl_zeroes": 0.3841712595779002,
+            "avg_thickness_excl_zeroes": 0.8466904761904762,
+            "avg_velocity_excl_zeroes": 12.95098187311178
+        },
+        "31": {
+            "max_thickness": 4.52,
+            "max_velocity": 47.47,
+            "avg_thickness_incl_zeroes": 0.014302997714746607,
+            "avg_velocity_incl_zeroes": 0.34473495541515436,
+            "avg_thickness_excl_zeroes": 0.8163682864450128,
+            "avg_velocity_excl_zeroes": 12.30952
+        },
+        "32": {
+            "max_thickness": 4.06,
+            "max_velocity": 49.89,
+            "avg_thickness_incl_zeroes": 0.01276381234036833,
+            "avg_velocity_incl_zeroes": 0.32996952995474305,
+            "avg_thickness_excl_zeroes": 0.813857142857143,
+            "avg_velocity_excl_zeroes": 12.523690476190477
+        },
+        "33": {
+            "max_thickness": 4.05,
+            "max_velocity": 48.31,
+            "avg_thickness_incl_zeroes": 0.011417753282251199,
+            "avg_velocity_incl_zeroes": 0.2705202312138728,
+            "avg_thickness_excl_zeroes": 0.7864506172839506,
+            "avg_velocity_excl_zeroes": 10.723268206039078
+        },
+        "34": {
+            "max_thickness": 3.87,
+            "max_velocity": 48.71,
+            "avg_thickness_incl_zeroes": 0.010284088363131244,
+            "avg_velocity_incl_zeroes": 0.254824573195322,
+            "avg_thickness_excl_zeroes": 0.7403548387096774,
+            "avg_velocity_excl_zeroes": 10.511866913123844
+        },
+        "35": {
+            "max_thickness": 3.64,
+            "max_velocity": 46.79,
+            "avg_thickness_incl_zeroes": 0.009255276246807368,
+            "avg_velocity_incl_zeroes": 0.2601281534256396,
+            "avg_thickness_excl_zeroes": 0.6839403973509933,
+            "avg_velocity_excl_zeroes": 10.953358490566037
+        },
+        "36": {
+            "max_thickness": 3.3200000000000003,
+            "max_velocity": 38.14,
+            "avg_thickness_incl_zeroes": 0.008277546265179011,
+            "avg_velocity_incl_zeroes": 0.22797643052381591,
+            "avg_thickness_excl_zeroes": 0.69187265917603,
+            "avg_velocity_excl_zeroes": 9.898346303501945
+        }
+    },
+    "debris_metrics": {
+        "1": {
+            "occupied_area_change": 0,
+            "std_dev_velocity": 0.0,
+            "std_dev_thickness": 0.0,
+            "temporal_stability": 0
+        },
+        "2": {
+            "occupied_area_change": 108,
+            "std_dev_velocity": 0.0,
+            "std_dev_thickness": 0.39237201843831615,
+            "temporal_stability": 0
+        },
+        "3": {
+            "occupied_area_change": 2,
+            "std_dev_velocity": 0.11854165111134504,
+            "std_dev_thickness": 0.3923172198099725,
+            "temporal_stability": 108
+        },
+        "4": {
+            "occupied_area_change": 11,
+            "std_dev_velocity": 0.43251157427980913,
+            "std_dev_thickness": 0.39245370247156536,
+            "temporal_stability": 2
+        },
+        "5": {
+            "occupied_area_change": 7,
+            "std_dev_velocity": 0.48427203545372893,
+            "std_dev_thickness": 0.39296829116561516,
+            "temporal_stability": 11
+        },
+        "6": {
+            "occupied_area_change": 1,
+            "std_dev_velocity": 0.57969008900093,
+            "std_dev_thickness": 0.39379250702534946,
+            "temporal_stability": 7
+        },
+        "7": {
+            "occupied_area_change": 8,
+            "std_dev_velocity": 0.5036221615047335,
+            "std_dev_thickness": 0.3796601690175204,
+            "temporal_stability": 1
+        },
+        "8": {
+            "occupied_area_change": 22,
+            "std_dev_velocity": 0.7825869644103305,
+            "std_dev_thickness": 0.3514459406805296,
+            "temporal_stability": 8
+        },
+        "9": {
+            "occupied_area_change": 44,
+            "std_dev_velocity": 1.1834399844094252,
+            "std_dev_thickness": 0.31860434710524593,
+            "temporal_stability": 22
+        },
+        "10": {
+            "occupied_area_change": 50,
+            "std_dev_velocity": 1.5340419444077837,
+            "std_dev_thickness": 0.28643357504088574,
+            "temporal_stability": 44
+        },
+        "11": {
+            "occupied_area_change": 54,
+            "std_dev_velocity": 2.2984602813131763,
+            "std_dev_thickness": 0.2571375977834102,
+            "temporal_stability": 50
+        },
+        "12": {
+            "occupied_area_change": 59,
+            "std_dev_velocity": 2.558667650967124,
+            "std_dev_thickness": 0.23270534117792865,
+            "temporal_stability": 54
+        },
+        "13": {
+            "occupied_area_change": 62,
+            "std_dev_velocity": 3.467538074865661,
+            "std_dev_thickness": 0.21410657176948117,
+            "temporal_stability": 59
+        },
+        "14": {
+            "occupied_area_change": 59,
+            "std_dev_velocity": 3.9385933380644094,
+            "std_dev_thickness": 0.20119121477876423,
+            "temporal_stability": 62
+        },
+        "15": {
+            "occupied_area_change": 79,
+            "std_dev_velocity": 4.003944773042556,
+            "std_dev_thickness": 0.19307545064276635,
+            "temporal_stability": 59
+        },
+        "16": {
+            "occupied_area_change": 39,
+            "std_dev_velocity": 4.21934622302131,
+            "std_dev_thickness": 0.18940361005233733,
+            "temporal_stability": 79
+        },
+        "17": {
+            "occupied_area_change": 22,
+            "std_dev_velocity": 4.223690751660065,
+            "std_dev_thickness": 0.18836300666674075,
+            "temporal_stability": 39
+        },
+        "18": {
+            "occupied_area_change": 27,
+            "std_dev_velocity": 4.0170512840713934,
+            "std_dev_thickness": 0.18691530850515675,
+            "temporal_stability": 22
+        },
+        "19": {
+            "occupied_area_change": 6,
+            "std_dev_velocity": 4.568403619190217,
+            "std_dev_thickness": 0.18422565570842564,
+            "temporal_stability": 27
+        },
+        "20": {
+            "occupied_area_change": 17,
+            "std_dev_velocity": 4.541857561912595,
+            "std_dev_thickness": 0.182697382704152,
+            "temporal_stability": 6
+        },
+        "21": {
+            "occupied_area_change": 1,
+            "std_dev_velocity": 4.518569227356919,
+            "std_dev_thickness": 0.18239161530831693,
+            "temporal_stability": 17
+        },
+        "22": {
+            "occupied_area_change": -14,
+            "std_dev_velocity": 4.4335880752855985,
+            "std_dev_thickness": 0.18584715275646854,
+            "temporal_stability": 1
+        },
+        "23": {
+            "occupied_area_change": -14,
+            "std_dev_velocity": 4.24892143725361,
+            "std_dev_thickness": 0.19106576161318847,
+            "temporal_stability": -14
+        },
+        "24": {
+            "occupied_area_change": -49,
+            "std_dev_velocity": 3.8187319227072813,
+            "std_dev_thickness": 0.1921984364551591,
+            "temporal_stability": -14
+        },
+        "25": {
+            "occupied_area_change": -19,
+            "std_dev_velocity": 3.793119480593834,
+            "std_dev_thickness": 0.1921989823657864,
+            "temporal_stability": -49
+        },
+        "26": {
+            "occupied_area_change": -44,
+            "std_dev_velocity": 3.565767625982241,
+            "std_dev_thickness": 0.19184973999612287,
+            "temporal_stability": -19
+        },
+        "27": {
+            "occupied_area_change": -30,
+            "std_dev_velocity": 3.745943789945747,
+            "std_dev_thickness": 0.18706346724010167,
+            "temporal_stability": -44
+        },
+        "28": {
+            "occupied_area_change": -41,
+            "std_dev_velocity": 3.44671304132623,
+            "std_dev_thickness": 0.18218518609498535,
+            "temporal_stability": -30
+        },
+        "29": {
+            "occupied_area_change": -20,
+            "std_dev_velocity": 2.871915769871113,
+            "std_dev_thickness": 0.1758296776959428,
+            "temporal_stability": -41
+        },
+        "30": {
+            "occupied_area_change": -27,
+            "std_dev_velocity": 3.102195627029172,
+            "std_dev_thickness": 0.16580153240608392,
+            "temporal_stability": -20
+        },
+        "31": {
+            "occupied_area_change": -29,
+            "std_dev_velocity": 2.6443298030727216,
+            "std_dev_thickness": 0.15481124804828592,
+            "temporal_stability": -27
+        },
+        "32": {
+            "occupied_area_change": -41,
+            "std_dev_velocity": 2.696759632261388,
+            "std_dev_thickness": 0.14396972219668108,
+            "temporal_stability": -29
+        },
+        "33": {
+            "occupied_area_change": -26,
+            "std_dev_velocity": 2.139124148897081,
+            "std_dev_thickness": 0.1363344216623456,
+            "temporal_stability": -41
+        },
+        "34": {
+            "occupied_area_change": -14,
+            "std_dev_velocity": 2.225210270766376,
+            "std_dev_thickness": 0.1258203709012798,
+            "temporal_stability": -26
+        },
+        "35": {
+            "occupied_area_change": -8,
+            "std_dev_velocity": 2.236943535082989,
+            "std_dev_thickness": 0.1165013306897443,
+            "temporal_stability": -14
+        },
+        "36": {
+            "occupied_area_change": -35,
+            "std_dev_velocity": 1.9204437179535458,
+            "std_dev_thickness": 0.10845329900919617,
+            "temporal_stability": -8
+        }
+    }
+}
