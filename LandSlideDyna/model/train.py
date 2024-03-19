@@ -118,15 +118,37 @@ class Trainer:
             # Print training and validation losses
             print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}')
 
+    # def test(self, test_loader):
+    #     """
+    #     Test the model using the given data loader.
+        
+    #     Args:
+    #         test_loader: DataLoader for the test data.
+        
+    #     Returns:
+    #         The average test loss.
+    #     """
+    #     test_loss = 0.0
+    #     self.model.eval()
+    #     with torch.no_grad():
+    #         for inputs, targets in test_loader:
+    #             inputs, targets = inputs.to(self.device), targets.to(self.device)
+    #             outputs = self.model(inputs)
+    #             loss = self.criterion(outputs, targets)
+    #             test_loss += loss.item() * inputs.size(0)
+        
+    #     test_loss /= len(test_loader.dataset)
+    #     return test_loss
+            
     def test(self, test_loader):
         """
-        Test the model using the given data loader.
-        
-        Args:
-            test_loader: DataLoader for the test data.
-        
-        Returns:
-            The average test loss.
+            Test the model using the given data loader.
+            
+            Args:
+                test_loader: DataLoader for the test data.
+            
+            Returns:
+                tuple: A tuple containing the average test loss, predicted values, and target values.
         """
         test_loss = 0.0
         self.model.eval()
@@ -138,4 +160,9 @@ class Trainer:
                 test_loss += loss.item() * inputs.size(0)
         
         test_loss /= len(test_loader.dataset)
-        return test_loss
+        
+        # Get the predicted and target values for the last sample in the test set
+        predicted = outputs[-1].cpu().numpy()
+        target = targets[-1].cpu().numpy()
+        
+        return test_loss, predicted, target
