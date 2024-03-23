@@ -1,23 +1,5 @@
-CHECK STATE / TIMESTEP DURATION / SPACING - SHOULD ALL BE THE SAME, 1S?
 
+Do t-v-t split based on model ID again - see main_NB. Need to set the model id at 0 index in the big tuple thing.
 
-add max value array
+It seems to be predicting the same thing for every input - check
 
-store metadata option
-
-update utils to OOP
-
-def flatten_to_max_value(state_arrays):
-    """
-    Flatten a list of 2D state arrays into a single array, keeping the maximum value at any location.
-
-    Args:
-    state_arrays (List[np.ndarray]): List of 2D NumPy arrays representing different states.
-
-    Returns:
-    np.ndarray: A 2D NumPy array with the maximum value at each location.
-    """
-    # Stack the arrays along a new dimension and then take the max along this new dimension
-    max_value_array = np.max(np.stack(state_arrays), axis=0)
-
-    return max_value_array

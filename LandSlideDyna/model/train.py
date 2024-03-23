@@ -1,69 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
 
-# class Trainer:
-#     def __init__(self, model, criterion, optimizer, device, augmentation=None):
-#         """
-#         Initialize the Trainer with model, criterion, optimizer, device, and augmentation.
-        
-#         Args:
-#             model: The neural network model to train.
-#             criterion: The loss function used for training.
-#             optimizer: The optimization algorithm used for training.
-#             device: The device to run the training on ('cuda' or 'cpu').
-#             augmentation: The augmentation to apply to the training data (default is None).
-#         """
-#         self.model = model
-#         self.criterion = criterion
-#         self.optimizer = optimizer
-#         self.device = device
-#         self.augmentation = augmentation
-
-#     def train(self, train_loader, val_loader, epochs):
-#         """
-#         Train the model using the given data loaders and number of epochs.
-        
-#         Args:
-#             train_loader: DataLoader for the training data.
-#             val_loader: DataLoader for the validation data.
-#             epochs: Number of epochs to train the model for.
-#         """
-#         self.model.to(self.device)
-#         for epoch in range(epochs):
-#             # Training phase
-#             self.model.train()
-#             train_loss = 0.0
-#             for inputs, targets in train_loader:
-#                 # Apply augmentation if it is provided
-#                 if self.augmentation:
-#                     inputs, targets = self.augmentation(inputs, targets)
-                
-#                 inputs, targets = inputs.to(self.device), targets.to(self.device)
-#                 self.optimizer.zero_grad()
-#                 outputs = self.model(inputs)
-#                 loss = self.criterion(outputs, targets)
-#                 loss.backward()
-#                 self.optimizer.step()
-#                 train_loss += loss.item() * inputs.size(0)
-
-#             # Validation phase
-#             val_loss = 0.0
-#             self.model.eval()
-#             with torch.no_grad():
-#                 for inputs, targets in val_loader:
-#                     inputs, targets = inputs.to(self.device), targets.to(self.device)
-#                     outputs = self.model(inputs)
-#                     loss = self.criterion(outputs, targets)
-#                     val_loss += loss.item() * inputs.size(0)
-
-#             # Calculate average losses
-#             train_loss /= len(train_loader.dataset)
-#             val_loss /= len(val_loader.dataset)
-
-#             # Print training and validation losses
-#             print(f'Epoch {epoch+1}/{epochs} - Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
-
-
 class Trainer:
     def __init__(self, model, criterion, optimizer, device, augmentation=None):
         """Initialize the Trainer with model, criterion, optimizer, device, and augmentation."""
@@ -117,52 +54,48 @@ class Trainer:
 
             # Print training and validation losses
             print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}')
-
-    # def test(self, test_loader):
-    #     """
-    #     Test the model using the given data loader.
-        
-    #     Args:
-    #         test_loader: DataLoader for the test data.
-        
-    #     Returns:
-    #         The average test loss.
-    #     """
-    #     test_loss = 0.0
-    #     self.model.eval()
-    #     with torch.no_grad():
-    #         for inputs, targets in test_loader:
-    #             inputs, targets = inputs.to(self.device), targets.to(self.device)
-    #             outputs = self.model(inputs)
-    #             loss = self.criterion(outputs, targets)
-    #             test_loss += loss.item() * inputs.size(0)
-        
-    #     test_loss /= len(test_loader.dataset)
-    #     return test_loss
-            
-    def test(self, test_loader):
+          
+  
+    def test(self, test_loader, return_indices=None):
         """
-            Test the model using the given data loader.
+        Test the model using the given data loader.
+        
+        Args:
+            test_loader: DataLoader for the test data.
+            return_indices (list or tuple, optional): Specific indices of the predictions and targets to return.
             
-            Args:
-                test_loader: DataLoader for the test data.
-            
-            Returns:
-                tuple: A tuple containing the average test loss, predicted values, and target values.
+        Returns:
+            tuple: A tuple containing the average test loss, predicted values, and target values.
         """
+        
         test_loss = 0.0
         self.model.eval()
+        
+        all_outputs = []
+        all_targets = []
+        
         with torch.no_grad():
             for inputs, targets in test_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)
                 test_loss += loss.item() * inputs.size(0)
+                all_outputs.append(outputs)
+                all_targets.append(targets)
         
         test_loss /= len(test_loader.dataset)
         
-        # Get the predicted and target values for the last sample in the test set
-        predicted = outputs[-1].cpu().numpy()
-        target = targets[-1].cpu().numpy()
+        # Concatenate all outputs and all targets
+        all_outputs = torch.cat(all_outputs).cpu().numpy()
+        all_targets = torch.cat(all_targets).cpu().numpy()
+        
+        # If return_indices is None, return the last sample by default
+        if return_indices is None:
+            predicted = all_outputs[-1]
+            target = all_targets[-1]
+        else:
+            # Else, return the specified indices
+            predicted = all_outputs[return_indices]
+            target = all_targets[return_indices]
         
         return test_loss, predicted, target

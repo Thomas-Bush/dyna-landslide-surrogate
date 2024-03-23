@@ -8,7 +8,7 @@ from scipy.ndimage import zoom
 
 
 class FinalProcessor:
-    def __init__(self, root_directory, model_id, target_resolution, interpolation_order):
+    def __init__(self, root_directory, model_id, target_size, target_resolution, interpolation_order):
         """Initializes a Data instance to read in the intially processed data.
         
         Args:
@@ -18,6 +18,7 @@ class FinalProcessor:
         self.model_id = model_id
         self.root_directory = root_directory
         self.target_res = target_resolution
+        self.target_size = target_size
         self.interp_order = interpolation_order
         
         self.model_dir = os.path.join(self.root_directory, f'{self.model_id}')
@@ -43,7 +44,7 @@ class FinalProcessor:
         self.remove_blank_states()
         self.limit_velocity()
         self.match_resolution()
-        self.crop_or_pad_arrays(target_size=256)
+        self.crop_or_pad_arrays(self.target_size)
 
 
     def load_data(self):
@@ -411,7 +412,7 @@ class FinalProcessor:
                              subfolder will be created.
         """
         # Create the "04_FinalProcessedData" subdirectory within the model's directory
-        final_data_path = os.path.join(base_path, str(self.model_id), "04_FinalProcessedData")
+        final_data_path = os.path.join(base_path, str(self.model_id), f"04_FinalProcessedData_{self.target_size}")
         elevation_path = os.path.join(final_data_path, 'elevation')
         velocity_path = os.path.join(final_data_path, 'velocity')
         thickness_path = os.path.join(final_data_path, 'thickness')
