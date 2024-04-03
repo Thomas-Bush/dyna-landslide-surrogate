@@ -1,5 +1,21 @@
+Add LSTM part, see if it helps. Any other techniques for predicting a sequence? Likely going to run into resource issues.
 
-Do t-v-t split based on model ID again - see main_NB. Need to set the model id at 0 index in the big tuple thing.
+Make a more refined, complex UNet. Same - increase layers / complexity of CNN. 
 
-It seems to be predicting the same thing for every input - check
+
+Add validation dataset
+
+Add masking back
+
+Add scaling of dataset
+
+Add augmentation
+
+Get a model, and use it to predict a sequence - can predict for as many states in the test model.
+
+Compare overall max, and state by state difference (will likely diverge)
+
+Convert it all to OOP
+
+
 
