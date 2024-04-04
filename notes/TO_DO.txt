@@ -3,8 +3,6 @@ Add LSTM part, see if it helps. Any other techniques for predicting a sequence? 
 Make a more refined, complex UNet. Same - increase layers / complexity of CNN. 
 
 
-Add validation dataset
-
 Add masking back
 
 Add scaling of dataset
@@ -15,7 +13,6 @@ Get a model, and use it to predict a sequence - can predict for as many states i
 
 Compare overall max, and state by state difference (will likely diverge)
 
-Convert it all to OOP
 
 
 

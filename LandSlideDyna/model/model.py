@@ -1,405 +1,204 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-#######################################
-## TINY MOST BASIC IMPLEMENTATION OF UNET ##
-#######################################
-
-class TinyBasicUNet(nn.Module):
-    """A basic U-Net architecture for semantic segmentation.
-
-    The U-Net is composed of an encoder (contracting path), a bottleneck, and a decoder (expansive path),
-    with skip connections between the encoder and decoder blocks.
-    """
-    
-    def __init__(self, in_channels, out_channels):
-        """Initializes the BasicUNet with the given number of input and output channels."""
-        super(TinyBasicUNet, self).__init__()
-
-        # Encoder
-        self.enc1 = self.encoder_block(in_channels, 8)
-        self.enc2 = self.encoder_block(8, 16)
-        self.enc3 = self.encoder_block(16, 32)
-        self.enc4 = self.encoder_block(32, 64)
-
-        # Bottleneck
-        self.bottleneck = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU()
-        )
-
-        # Decoder
-        self.dec1 = self.decoder_block(128 + 64, 64)  # Adjusted for concatenated channels
-        self.dec2 = self.decoder_block(64 + 32, 32)   # Adjusted for concatenated channels
-        self.dec3 = self.decoder_block(32 + 16, 16)   # Adjusted for concatenated channels
-        self.dec4 = self.decoder_block(16 + 8, 8)     # Adjusted for concatenated channels
-
-        # Final output
-        self.out_conv = nn.Conv2d(8, out_channels, kernel_size=1)
-
-    def encoder_block(self, in_channels, out_channels):
-        """Defines an encoder block with Convolution, ReLU activation, and MaxPooling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-
-    def decoder_block(self, in_channels, out_channels):
-        """Defines a decoder block with Convolution, ReLU activation, and Upsampling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        )
+class Complex_CNN(nn.Module):
+    def __init__(self):
+        super(Complex_CNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)  # Input: 3 channels, Output: 32 channels
+        self.bn1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(256)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        self.conv5 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.bn5 = nn.BatchNorm2d(128)
+        self.conv6 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
+        self.bn6 = nn.BatchNorm2d(64)
+        self.conv7 = nn.Conv2d(64, 2, kernel_size=3, padding=1)  # Output: 2 channels (velocity and thickness)
 
     def forward(self, x):
-        # Encoder
-        e1 = self.enc1(x)
-        e2 = self.enc2(e1)
-        e3 = self.enc3(e2)
-        e4 = self.enc4(e3)
+        # Encoder path
+        x1 = F.relu(self.bn1(self.conv1(x)))     # 64x64x32
+        x2 = self.pool(x1)                       # 32x32x32
+        x3 = F.relu(self.bn2(self.conv2(x2)))    # 32x32x64
+        x4 = self.pool(x3)                       # 16x16x64
+        x5 = F.relu(self.bn3(self.conv3(x4)))    # 16x16x128
+        x6 = self.pool(x5)                       # 8x8x128
+        x7 = F.relu(self.bn4(self.conv4(x6)))    # 8x8x256
 
-        # Bottleneck
-        b = self.bottleneck(e4)
+        # Decoder path
+        x8 = self.up(x7)                         # 16x16x256
+        x9 = F.relu(self.bn5(self.conv5(x8)))    # 16x16x128
+        x10 = self.up(x9)                        # 32x32x128
+        x11 = F.relu(self.bn6(self.conv6(x10)))  # 32x32x64
+        x12 = self.up(x11)                       # 64x64x64
 
-        # Decoder with skip connections and cropping
-        d1 = self.dec1(torch.cat((e4, b), dim=1))
-        d2 = self.dec2(torch.cat((e3, d1), dim=1))
-        d3 = self.dec3(torch.cat((e2, d2), dim=1))
-        d4 = self.dec4(torch.cat((e1, d3), dim=1))
-
-        # Final output
-        out = self.out_conv(d4)
-        return out
-
-
-class SmallBasicUNet(nn.Module):
-    """A basic U-Net architecture for semantic segmentation.
-
-    The U-Net is composed of an encoder (contracting path), a bottleneck, and a decoder (expansive path),
-    with skip connections between the encoder and decoder blocks.
-    """
+        # Output layer
+        x13 = self.conv7(x12)                    # 64x64x2
+        return x13
     
-    def __init__(self, in_channels, out_channels):
-        """Initializes the BasicUNet with the given number of input and output channels."""
-        super(SmallBasicUNet, self).__init__()
+class SimpleUNet(nn.Module):
+    def __init__(self):
+        super(SimpleUNet, self).__init__()
 
-        # Encoder
-        self.enc1 = self.encoder_block(in_channels, 16)
-        self.enc2 = self.encoder_block(16, 32)
-        self.enc3 = self.encoder_block(32, 64)
-        self.enc4 = self.encoder_block(64, 128)
-
-        # Bottleneck
-        self.bottleneck = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.ReLU()
-        )
-
-        # Decoder
-        self.dec1 = self.decoder_block(256 + 128, 128)  # Adjusted for concatenated channels
-        self.dec2 = self.decoder_block(128 + 64, 64)   # Adjusted for concatenated channels
-        self.dec3 = self.decoder_block(64 + 32, 32)   # Adjusted for concatenated channels
-        self.dec4 = self.decoder_block(32 + 16, 16)     # Adjusted for concatenated channels
-
-        # Final output
-        self.out_conv = nn.Conv2d(16, out_channels, kernel_size=1)
-
-    def encoder_block(self, in_channels, out_channels):
-        """Defines an encoder block with Convolution, ReLU activation, and MaxPooling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-
-    def decoder_block(self, in_channels, out_channels):
-        """Defines a decoder block with Convolution, ReLU activation, and Upsampling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        )
-
-    def forward(self, x):
-        # Encoder
-        e1 = self.enc1(x)
-        e2 = self.enc2(e1)
-        e3 = self.enc3(e2)
-        e4 = self.enc4(e3)
-
-        # Bottleneck
-        b = self.bottleneck(e4)
-
-        # Decoder with skip connections and cropping
-        d1 = self.dec1(torch.cat((e4, b), dim=1))
-        d2 = self.dec2(torch.cat((e3, d1), dim=1))
-        d3 = self.dec3(torch.cat((e2, d2), dim=1))
-        d4 = self.dec4(torch.cat((e1, d3), dim=1))
-
-        # Final output
-        out = self.out_conv(d4)
-        return out
-
-
-class MediumBasicUNet(nn.Module):
-    """A basic U-Net architecture for semantic segmentation.
-
-    The U-Net is composed of an encoder (contracting path), a bottleneck, and a decoder (expansive path),
-    with skip connections between the encoder and decoder blocks.
-    """
-    
-    def __init__(self, in_channels, out_channels):
-        """Initializes the BasicUNet with the given number of input and output channels."""
-        super(MediumBasicUNet, self).__init__()
-
-        # Encoder
-        self.enc1 = self.encoder_block(in_channels, 32)
-        self.enc2 = self.encoder_block(32, 64)
-        self.enc3 = self.encoder_block(64, 128)
-        self.enc4 = self.encoder_block(128, 256)
-
-        # Bottleneck
-        self.bottleneck = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.ReLU()
-        )
-
-        # Decoder
-        self.dec1 = self.decoder_block(512 + 256, 256)  # Adjusted for concatenated channels
-        self.dec2 = self.decoder_block(256 + 128, 128)   # Adjusted for concatenated channels
-        self.dec3 = self.decoder_block(128 + 64, 64)   # Adjusted for concatenated channels
-        self.dec4 = self.decoder_block(64 + 32, 32)     # Adjusted for concatenated channels
-
-        # Final output
-        self.out_conv = nn.Conv2d(32, out_channels, kernel_size=1)
-
-    def encoder_block(self, in_channels, out_channels):
-        """Defines an encoder block with Convolution, ReLU activation, and MaxPooling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-
-    def decoder_block(self, in_channels, out_channels):
-        """Defines a decoder block with Convolution, ReLU activation, and Upsampling."""
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        )
-
-    def forward(self, x):
-        # Encoder
-        e1 = self.enc1(x)
-        e2 = self.enc2(e1)
-        e3 = self.enc3(e2)
-        e4 = self.enc4(e3)
-
-        # Bottleneck
-        b = self.bottleneck(e4)
-
-        # Decoder with skip connections and cropping
-        d1 = self.dec1(torch.cat((e4, b), dim=1))
-        d2 = self.dec2(torch.cat((e3, d1), dim=1))
-        d3 = self.dec3(torch.cat((e2, d2), dim=1))
-        d4 = self.dec4(torch.cat((e1, d3), dim=1))
-
-        # Final output
-        out = self.out_conv(d4)
-        return out
-
-
-
-################################################
-## MEDIUM UNET PLUS: WITH BATCH NORM / DROPOUT ##
-################################################
-
-class MediumUNetPlus(nn.Module):
-    """A basic U-Net architecture for semantic segmentation with dropout regularization.
-
-    Attributes:
-        enc1: First encoder block.
-        enc2: Second encoder block.
-        enc3: Third encoder block.
-        enc4: Fourth encoder block.
-        bottleneck: The bottleneck part of the network including dropout layers.
-        dec1: First decoder block.
-        dec2: Second decoder block.
-        dec3: Third decoder block.
-        dec4: Fourth decoder block.
-        out_conv: Final output convolutional layer.
-    """
-
-    def __init__(self, in_channels, out_channels, dropout_rate=0.5):
-        """Initializes the BasicUNet with the given number of input and output channels and dropout rate.
-
-        Args:
-            in_channels: The number of input channels.
-            out_channels: The number of output channels.
-            dropout_rate: The dropout rate to use in the bottleneck and decoder blocks.
-        """
-        super(MediumUNetPlus, self).__init__()
-
-        # Encoder
-        self.enc1 = self.encoder_block(in_channels, 32)
-        self.enc2 = self.encoder_block(32, 64)
-        self.enc3 = self.encoder_block(64, 128)
-        self.enc4 = self.encoder_block(128, 256)
-
-        # Bottleneck
-        self.bottleneck = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate)
-        )
-
-        # Decoder
-        self.dec1 = self.decoder_block(512 + 256, 256, dropout_rate)
-        self.dec2 = self.decoder_block(256 + 128, 128, dropout_rate)
-        self.dec3 = self.decoder_block(128 + 64, 64, dropout_rate)
-        self.dec4 = self.decoder_block(64 + 32, 32, dropout_rate)
-
-        # Final output
-        self.out_conv = nn.Conv2d(32, out_channels, kernel_size=1)
-
-    def encoder_block(self, in_channels, out_channels):
-        """Creates an encoder block with Convolution, Batch Normalization, ReLU activation, and MaxPooling.
-
-        Args:
-            in_channels: The number of input channels for the block.
-            out_channels: The number of output channels for the block.
-
-        Returns:
-            An nn.Sequential module comprising the encoder block layers.
-        """
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2, stride=2)
-        )
-
-    def decoder_block(self, in_channels, out_channels, dropout_rate):
-        """Creates a decoder block with Convolution, Batch Normalization, ReLU activation, Dropout, and Upsampling.
-
-        Args:
-            in_channels: The number of input channels for the block.
-            out_channels: The number of output channels for the block.
-            dropout_rate: The dropout rate to use after convolutional layers.
-
-        Returns:
-            An nn.Sequential module comprising the decoder block layers.
-        """
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        )
-
-    def forward(self, x):
-        """Defines the forward pass of the BasicUNet with skip connections.
-
-        Args:
-            x: The input tensor.
-
-        Returns:
-            The output tensor after passing through the U-Net.
-        """
-        # Encoder
-        e1 = self.enc1(x)
-        e2 = self.enc2(e1)
-        e3 = self.enc3(e2)
-        e4 = self.enc4(e3)
-
-        # Bottleneck
-        b = self.bottleneck(e4)
-
-        # Decoder with skip connections
-        d1 = self.dec1(torch.cat((e4, b), dim=1))
-        d2 = self.dec2(torch.cat((e3, d1), dim=1))
-        d3 = self.dec3(torch.cat((e2, d2), dim=1))
-        d4 = self.dec4(torch.cat((e1, d3), dim=1))
-
-        # Final output
-        out = self.out_conv(d4)
-
-        return out
-    
-
-
-
-
-
-class CNNLSTM(nn.Module):
-    def __init__(self, unet, lstm_hidden_size, lstm_layers):
-        super(CNNLSTM, self).__init__()
-        self.unet = unet
-        self.sequence_length = 5  # The length of the input sequences
+        # Define the U-Net architecture
+        # Contracting Path (Encoder)
+        self.enc_conv0 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.enc_conv1 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.enc_conv2 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.enc_conv3 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
         
-        # Use a dummy input to determine the UNet's output size for one frame
-        dummy_input = torch.randn(1, 3, 256, 256)  # Single frame input
-        with torch.no_grad():
-            dummy_output = self.unet(dummy_input)
+        self.pool = nn.MaxPool2d(2, 2)
 
-        # Flatten the output to get the number of features for the LSTM
-        num_features = dummy_output.nelement()
+        # Expanding Path (Decoder)
+        self.up_conv0 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        self.up_conv1 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.up_conv2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
 
-        # Define the LSTM layer with the correct input size
-        self.lstm = nn.LSTM(input_size=num_features,
-                            hidden_size=lstm_hidden_size,
-                            num_layers=lstm_layers,
-                            batch_first=True)
+        self.dec_conv1 = nn.Conv2d(512, 256, kernel_size=3, padding=1)
+        self.dec_conv2 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.dec_conv3 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
 
-        # Define the final fully connected layer
-        self.fc = nn.Linear(in_features=lstm_hidden_size,
-                            out_features=2 * 256 * 256)  # Output features for each pixel
+        self.final_conv = nn.Conv2d(64, 2, kernel_size=1)  # Output: 1 channel (velocity)
 
     def forward(self, x):
-        batch_size = x.size(0)
-        sequence_output = []
+        # Encoder
+        enc0 = F.relu(self.enc_conv0(x))
+        enc1 = F.relu(self.enc_conv1(self.pool(enc0)))
+        enc2 = F.relu(self.enc_conv2(self.pool(enc1)))
+        enc3 = F.relu(self.enc_conv3(self.pool(enc2)))
 
-        # Process each frame through UNet and collect outputs
-        for t in range(self.sequence_length):
-            frame_output = self.unet(x[:, t])
-            frame_output = frame_output.view(batch_size, -1)  # Flatten the output
-            sequence_output.append(frame_output)
+        # Decoder
+        dec2 = F.relu(self.dec_conv1(torch.cat((self.up_conv0(enc3), enc2), dim=1)))
+        dec1 = F.relu(self.dec_conv2(torch.cat((self.up_conv1(dec2), enc1), dim=1)))
+        dec0 = F.relu(self.dec_conv3(torch.cat((self.up_conv2(dec1), enc0), dim=1)))
 
-        # Stack the sequence outputs into a batch
-        lstm_input = torch.stack(sequence_output, dim=1)
+        # Final convolution
+        return self.final_conv(dec0)
+    
+class LargeUNet(nn.Module):
+    def __init__(self):
+        super(LargeUNet, self).__init__()
 
-        # Process the sequence through the LSTM
-        lstm_output, _ = self.lstm(lstm_input)
+        # Contracting Path (Encoder)
+        self.enc_conv0 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.bn0 = nn.BatchNorm2d(64)
+        self.enc_conv1 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(128)
+        self.enc_conv2 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(256)
+        self.enc_conv3 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm2d(512)
+        self.enc_conv4 = nn.Conv2d(512, 1024, kernel_size=3, padding=1)
+        self.bn4 = nn.BatchNorm2d(1024)
 
-        # Process the output of the LSTM with a fully connected layer
-        # Assuming we only want the last output of the sequence for prediction
-        last_lstm_output = lstm_output[:, -1]
-        final_output = self.fc(last_lstm_output)
-        final_output = final_output.view(batch_size, 256, 256, 2)  # Reshape to match target
+        self.pool = nn.MaxPool2d(2, 2)
 
-        return final_output
+        # Expanding Path (Decoder)
+        self.up_conv1 = nn.ConvTranspose2d(1024, 512, kernel_size=2, stride=2)
+        self.up_conv0 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        self.up_conv_1 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.up_conv_2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+
+        self.dec_conv4 = nn.Conv2d(1024, 512, kernel_size=3, padding=1)
+        self.dec_bn4 = nn.BatchNorm2d(512)
+        self.dec_conv3 = nn.Conv2d(512, 256, kernel_size=3, padding=1)
+        self.dec_bn3 = nn.BatchNorm2d(256)
+        self.dec_conv2 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+        self.dec_bn2 = nn.BatchNorm2d(128)
+        self.dec_conv1 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
+        self.dec_bn1 = nn.BatchNorm2d(64)
+
+        self.final_conv = nn.Conv2d(64, 2, kernel_size=1)
+
+    def forward(self, x):
+        # Encoder
+        enc0 = F.relu(self.bn0(self.enc_conv0(x)))
+        enc1 = F.relu(self.bn1(self.enc_conv1(self.pool(enc0))))
+        enc2 = F.relu(self.bn2(self.enc_conv2(self.pool(enc1))))
+        enc3 = F.relu(self.bn3(self.enc_conv3(self.pool(enc2))))
+        enc4 = F.relu(self.bn4(self.enc_conv4(self.pool(enc3))))
+
+        # Decoder
+        dec3 = F.relu(self.dec_bn4(self.dec_conv4(torch.cat((self.up_conv1(enc4), enc3), dim=1))))
+        dec2 = F.relu(self.dec_bn3(self.dec_conv3(torch.cat((self.up_conv0(dec3), enc2), dim=1))))
+        dec1 = F.relu(self.dec_bn2(self.dec_conv2(torch.cat((self.up_conv_1(dec2), enc1), dim=1))))
+        dec0 = F.relu(self.dec_bn1(self.dec_conv1(torch.cat((self.up_conv_2(dec1), enc0), dim=1))))
+
+        # Final convolution
+        return self.final_conv(dec0)
+    
+class UNet(nn.Module):
+    def __init__(self, in_channels, out_channels, features=[64, 128, 256, 512, 1024]):
+        super(UNet, self).__init__()
+        self.encoders = nn.ModuleList()
+        self.decoders = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+        # Encoder path
+        for feature in features:
+            self.encoders.append(
+                UNet._block(in_channels, feature)
+            )
+            in_channels = feature
+        
+        # Bottleneck
+        self.bottleneck = UNet._block(features[-1], features[-1] * 2)
+
+        # Decoder path
+        for feature in reversed(features):
+            self.decoders.append(
+                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
+            )
+            self.decoders.append(
+                UNet._block(feature * 2, feature)
+            )
+        
+        # Final convolution
+        self.final_layer = nn.Conv2d(features[0], out_channels, kernel_size=1)
+
+    @staticmethod
+    def _block(in_channels, features):
+        return nn.Sequential(
+            nn.Conv2d(in_channels, features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(features, features, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(features),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        skip_connections = []
+
+        # Encoder
+        for encoder in self.encoders:
+            x = encoder(x)
+            skip_connections.append(x)
+            x = self.pool(x)
+
+        # Bottleneck
+        x = self.bottleneck(x)
+
+        # Reverse the skip connections
+        skip_connections = skip_connections[::-1]
+
+        # Decoder
+        for idx in range(0, len(self.decoders), 2):
+            x = self.decoders[idx](x)
+            skip_connection = skip_connections[idx // 2]
+
+            # If the input sizes are different, resize the skip connection to match
+            if x.shape != skip_connection.shape:
+                x = F.interpolate(x, size=skip_connection.shape[2:])
+
+            x = torch.cat((skip_connection, x), dim=1)
+            x = self.decoders[idx + 1](x)
+
+        return self.final_layer(x)
