@@ -9,18 +9,21 @@ from torch.utils.data import DataLoader
 
 
 class Trainer:
-    def __init__(self, model, optimizer, criterion, device, model_name=""):
+    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.model_name = model_name    
+        self.model_name = model_name.strip()
+        self.checkpoint_dir = checkpoint_dir.strip()
         self.training_losses = []
         self.validation_losses = []
 
-    def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
-        os.makedirs(f'{self.model_name}_checkpoints', exist_ok=True)
+        # Ensure the checkpoint directory exists
+        self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
 
+    def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
         self.model.train()
         for epoch in range(epochs):
             total_loss = 0.0
@@ -47,10 +50,13 @@ class Trainer:
             # Save the model at the specified checkpoint interval
             if (epoch + 1) % checkpoint_interval == 0:
                 self.save_checkpoint(epoch + 1)
-                self.save_losses()
+                self.save_losses(epoch + 1)
+
+        # Save checkpoint after the final epoch
+        self.save_checkpoint(epochs)
 
         # Save losses after the final epoch
-        self.save_losses()
+        self.save_losses(epochs)
 
         # After training, plot the training and validation losses
         self.plot_losses()
@@ -70,25 +76,34 @@ class Trainer:
         return avg_val_loss
 
     def save_checkpoint(self, epoch):
-        checkpoint_path = f'model_checkpoints/model_epoch_{epoch}.pth'
+        checkpoint_file = f'model_epoch_{epoch}.pth'
+        checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_file)
         torch.save(self.model.state_dict(), checkpoint_path)
         print(f'Model saved to {checkpoint_path}')
 
-    def save_losses(self):
+    def save_losses(self, epoch):
+        losses_file = f'losses_epoch_{epoch}.json'
+        losses_path = os.path.join(self.checkpoint_dir, losses_file)
+
         losses = {
             'training_losses': self.training_losses,
             'validation_losses': self.validation_losses
         }
-        with open(f'{self.model_name}_losses.json', 'w') as f:
-            json.dump(losses, f)
-        print(f'Losses saved to {self.model_name}_losses.json')
+        
+        with open(losses_path, 'w') as f:
+            json.dump(losses, f, indent=4)
+        
+        print(f'Losses saved to {losses_path}')
 
     def load_losses(self):
-        with open(f'{self.model_name}_losses.json', 'r') as f:
+        losses_file = 'losses.json'
+        losses_path = os.path.join(self.checkpoint_dir, losses_file)
+
+        with open(losses_path, 'r') as f:
             losses = json.load(f)
         self.training_losses = losses['training_losses']
         self.validation_losses = losses['validation_losses']
-        print(f'Losses loaded from {self.model_name}_losses.json')
+        print(f'Losses loaded from {losses_path}')
 
     def test(self, test_loader):
         self.model.eval()
@@ -215,5 +230,13 @@ class Trainer:
         plt.ylabel('Loss')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'{self.model_name}_losses_plot.png')
+        plt.tight_layout()
+
+        # Save the plot as an image file
+        plot_file = 'loss_plot.png'
+        plot_path = os.path.join(self.checkpoint_dir, plot_file)
+        plt.savefig(plot_path)
+        print(f'Loss plot saved to {plot_path}')
+
+        # Show the plot
         plt.show()

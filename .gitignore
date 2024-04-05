@@ -8,6 +8,7 @@ data/
 data_temp/
 data_small/
 ref/
+checkpoints/
 
 # keeping files locally just in case
 ss/
