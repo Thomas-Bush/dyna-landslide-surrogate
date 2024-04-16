@@ -1,18 +1,14 @@
-Add LSTM part, see if it helps. Any other techniques for predicting a sequence? Likely going to run into resource issues.
+- check scaling works in series nb now. Need to scale back again.
 
-Make a more refined, complex UNet. Same - increase layers / complexity of CNN. 
+- hyper param tuning - need to do some at least. Anything to get the finer details.
 
+- check the bottom of the unet lstm - should be two lstm cells, currently lstm and linear.
 
-Add masking back
+- create inference code
 
-Add scaling of dataset
+- do some more difference plots. Train for say 60s, and get 0, 15, 30, 45, 50
 
-Add augmentation
-
-Get a model, and use it to predict a sequence - can predict for as many states in the test model.
-
-Compare overall max, and state by state difference (will likely diverge)
-
+- Try some different loss - MSE, MAE, want to do some loss that gives attention to the debris itself (50:50 or soemthing)
 
 
 
