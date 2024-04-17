@@ -1,14 +1,42 @@
-- check scaling works in series nb now. Need to scale back again.
-
-- hyper param tuning - need to do some at least. Anything to get the finer details.
-
-- check the bottom of the unet lstm - should be two lstm cells, currently lstm and linear.
+- check the bottom of the unet lstm - should be two lstm cells, currently lstm and linear
 
 - create inference code
+- Add unscaling logic for inference. Need to scale back again.
+- run one of the test models through - find a good one.
+    - do some more difference plots. Train for say 60s, and get 0, 15, 30, 45, 50
+
+
+
+Experimentation
+
+Install Optuna
+
+Phase 1 - Model Selection
+- simpler architecture, just do CNN, simple UNet, more complex UNet (match arch of final one)
+- Use literature to justify decision - similar results found by xyz
+
+Phase 2 - Hyper Parameter Optimization
+
+- hyper param tuning - need to do some at least. Anything to get the finer details.
+- prove different loss functions - the hybrid one seemed to work quite well. But maybe needed more epochs.
+
+Again, do on simple CNN only architecture. 
+
+Phase 3 - LSTM hyper param?
+
+If time, try to optimise these too. 
+
+
+
+
+
 
 - do some more difference plots. Train for say 60s, and get 0, 15, 30, 45, 50
 
-- Try some different loss - MSE, MAE, want to do some loss that gives attention to the debris itself (50:50 or soemthing)
 
+- document code
 
+- tidy up all folders for final
+
+- auto delete any really small velocity / thickness values and set to 0? might clean up a lot?
 

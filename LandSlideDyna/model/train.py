@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import torch
+import torch.nn as nn
 import json
 import matplotlib.pyplot as plt
 
@@ -429,3 +430,25 @@ class TrainerSeries:
 
                 plt.tight_layout()
                 plt.show()
+
+class CustomDebrisLoss(nn.Module):
+    def __init__(self, loss_fn_zero=nn.MSELoss(), loss_fn_debris=nn.L1Loss(), debris_weight=0.75):
+        super(CustomDebrisLoss, self).__init__()
+        self.loss_fn_zero = loss_fn_zero
+        self.loss_fn_debris = loss_fn_debris
+        self.debris_weight = debris_weight
+
+    def forward(self, outputs, targets):
+        # Create a mask for debris areas (non-zero targets)
+        debris_mask = targets != 0
+        # Calculate loss for debris areas
+        debris_loss = self.loss_fn_debris(outputs[debris_mask], targets[debris_mask])
+        
+        # Calculate loss for zero areas
+        zero_mask = ~debris_mask
+        zero_loss = self.loss_fn_zero(outputs[zero_mask], targets[zero_mask])
+        
+        # Weighted sum of the two losses
+        total_loss = (self.debris_weight * debris_loss + 
+                      (1 - self.debris_weight) * zero_loss)
+        return total_loss

@@ -50,6 +50,7 @@ class DebrisStatePairsDataset(Dataset):
                         # Append the model_id for each valid data point
                         self.model_ids.append(model_id)
 
+
     def compute_scaling_factors(self):
         # Ensure that scaling is intended before computing factors
         if not self.apply_scaling:
@@ -84,6 +85,7 @@ class DebrisStatePairsDataset(Dataset):
         terrain_scaled = (terrain - self.min_elevation) / (self.max_elevation - self.min_elevation) * 10
         velocity_scaled = (velocity - self.min_velocity) / (self.max_velocity - self.min_velocity) * 10 
         thickness_scaled = (thickness - self.min_thickness) / (self.max_thickness - self.min_thickness) * 10
+
         return terrain_scaled, velocity_scaled, thickness_scaled
 
 
@@ -215,7 +217,6 @@ class DebrisStateSeriesDataset(Dataset):
                         self.model_ids.append(model_id)
 
     def compute_scaling_factors(self):
-
         # Ensure that scaling is intended before computing factors
         if not self.apply_scaling:
             raise RuntimeError("Scaling factors called to be computed when scaling is not applied.")
@@ -235,21 +236,39 @@ class DebrisStateSeriesDataset(Dataset):
             self.max_elevation = max(self.max_elevation, terrain.max())
 
             # Assuming that velocity and thickness files are matched in the data_files
-            for velocity_path, _, thickness_path, _ in self.data_files:
-                if model_dir in velocity_path:  # Checking if the file belongs to the current model directory
-                    velocity = np.load(velocity_path)
-                    thickness = np.load(thickness_path)
-                    self.min_velocity = min(self.min_velocity, velocity.min())
-                    self.max_velocity = max(self.max_velocity, velocity.max())
-                    self.min_thickness = min(self.min_thickness, thickness.min())
-                    self.max_thickness = max(self.max_thickness, thickness.max())
+            for velocity_paths, thickness_paths, _, _ in self.data_files:
+                for velocity_path, thickness_path in zip(velocity_paths, thickness_paths):
+                    if velocity_path is None or thickness_path is None:
+                        continue
+
+                    if model_dir in velocity_path:  # Checking if the file belongs to the current model directory
+                        velocity = np.load(velocity_path)
+                        thickness = np.load(thickness_path)
+                        self.min_velocity = min(self.min_velocity, velocity.min())
+                        self.max_velocity = max(self.max_velocity, velocity.max())
+                        self.min_thickness = min(self.min_thickness, thickness.min())
+                        self.max_thickness = max(self.max_thickness, thickness.max())
+
 
     def scale_data(self, terrain, velocity, thickness):
-        # Apply Min-Max scaling to each feature
         terrain_scaled = (terrain - self.min_elevation) / (self.max_elevation - self.min_elevation) * 10
-        velocity_scaled = (velocity - self.min_velocity) / (self.max_velocity - self.min_velocity) * 10 
-        thickness_scaled = (thickness - self.min_thickness) / (self.max_thickness - self.min_thickness) * 10
+
+        if velocity is None:
+            velocity_scaled = np.zeros_like(terrain)
+        elif self.max_velocity == self.min_velocity:
+            velocity_scaled = np.zeros_like(velocity)
+        else:
+            velocity_scaled = (velocity - self.min_velocity) / (self.max_velocity - self.min_velocity) * 10
+
+        if thickness is None:
+            thickness_scaled = np.zeros_like(terrain)
+        elif self.max_thickness == self.min_thickness:
+            thickness_scaled = np.zeros_like(thickness)
+        else:
+            thickness_scaled = (thickness - self.min_thickness) / (self.max_thickness - self.min_thickness) * 10
+
         return terrain_scaled, velocity_scaled, thickness_scaled
+
 
     def __len__(self):
         return len(self.data_files)
