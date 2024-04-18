@@ -396,6 +396,53 @@ class DecoderBlock(nn.Module):
         x = self.conv_block(x)
         return x
 
+# class UNetLSTM(nn.Module):
+#     def __init__(self, input_channels=3, output_channels=2, hidden_size=512):
+#         super().__init__()
+#         self.enc1 = EncoderBlock(input_channels, 16)
+#         self.enc2 = EncoderBlock(16, 32)
+#         self.enc3 = EncoderBlock(32, 64)
+#         self.enc4 = EncoderBlock(64, 128)
+#         self.enc5 = EncoderBlock(128, 256)
+#         self.conv_block = ConvBlock(256, 512)
+#         self.gap = nn.AdaptiveAvgPool2d((1, 1))
+#         self.lstm = nn.LSTM(512, hidden_size, batch_first=True)
+#         self.fc = nn.Linear(hidden_size, 512)
+#         self.reshape = nn.Unflatten(1, (512, 1, 1))
+#         self.dec5 = DecoderBlock(512, 256)
+#         self.dec4 = DecoderBlock(256, 128)
+#         self.dec3 = DecoderBlock(128, 64)
+#         self.dec2 = DecoderBlock(64, 32)
+#         self.dec1 = DecoderBlock(32, 16)
+#         self.final_conv = nn.Conv2d(16, output_channels, kernel_size=1)
+
+#     def forward(self, x):
+#         batch_size, seq_len, _, _, _ = x.size()
+#         outputs = []
+#         for t in range(seq_len):
+#             x_t, skip1 = self.enc1(x[:, t])
+#             x_t, skip2 = self.enc2(x_t)
+#             x_t, skip3 = self.enc3(x_t)
+#             x_t, skip4 = self.enc4(x_t)
+#             x_t, skip5 = self.enc5(x_t)
+#             x_t = self.conv_block(x_t)
+#             x_t = self.gap(x_t)
+#             x_t = x_t.view(batch_size, -1).unsqueeze(1)
+#             outputs.append(x_t)
+#         x = torch.cat(outputs, dim=1)
+
+#         x, _ = self.lstm(x)
+#         x = self.fc(x[:, -1, :])
+#         x = self.reshape(x)
+
+#         x = self.dec5(x, skip5)
+#         x = self.dec4(x, skip4)
+#         x = self.dec3(x, skip3)
+#         x = self.dec2(x, skip2)
+#         x = self.dec1(x, skip1)
+#         x = self.final_conv(x)
+#         return x, None
+
 class UNetLSTM(nn.Module):
     def __init__(self, input_channels=3, output_channels=2, hidden_size=512):
         super().__init__()
@@ -406,8 +453,8 @@ class UNetLSTM(nn.Module):
         self.enc5 = EncoderBlock(128, 256)
         self.conv_block = ConvBlock(256, 512)
         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-        self.lstm = nn.LSTM(512, hidden_size, batch_first=True)
-        self.fc = nn.Linear(hidden_size, 512)
+        self.lstm1 = nn.LSTM(512, hidden_size, batch_first=True)
+        self.lstm2 = nn.LSTM(hidden_size, hidden_size, batch_first=True)
         self.reshape = nn.Unflatten(1, (512, 1, 1))
         self.dec5 = DecoderBlock(512, 256)
         self.dec4 = DecoderBlock(256, 128)
@@ -431,8 +478,9 @@ class UNetLSTM(nn.Module):
             outputs.append(x_t)
         x = torch.cat(outputs, dim=1)
 
-        x, _ = self.lstm(x)
-        x = self.fc(x[:, -1, :])
+        x, _ = self.lstm1(x)
+        x, _ = self.lstm2(x)  # Second LSTM layer output
+        x = x[:, -1, :]  # Only the last output from the second LSTM
         x = self.reshape(x)
 
         x = self.dec5(x, skip5)

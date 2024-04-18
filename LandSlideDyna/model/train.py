@@ -245,15 +245,17 @@ class TrainerPairs:
 
 
 class TrainerSeries:
-    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+    def __init__(self, model, optimizer, criterion, device, sequence_length, model_name="", checkpoint_dir="model_checkpoints"):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
+        self.sequence_length = sequence_length
         self.model_name = model_name.strip()
         self.checkpoint_dir = checkpoint_dir.strip()
         self.training_losses = []
         self.validation_losses = []
+
 
         # Ensure the checkpoint directory exists
         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
@@ -323,6 +325,11 @@ class TrainerSeries:
         torch.save(self.model.state_dict(), checkpoint_path)
         print(f'Model saved to {checkpoint_path}')
 
+    def load_checkpoint(self, checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        self.model.load_state_dict(checkpoint)
+        print(f'Model loaded from {checkpoint_path}')
+
     def save_losses(self, epoch):
         losses_file = f'losses_epoch_{epoch}.json'
         losses_path = os.path.join(self.checkpoint_dir, losses_file)
@@ -360,6 +367,46 @@ class TrainerSeries:
                 total_loss += loss.item()
         avg_loss = total_loss / len(test_loader)
         print(f'Test Loss: {avg_loss:.4f}')
+
+    def infer(self, initial_sequence, num_timesteps, sequence_length):
+        self.model.eval()
+        device = next(self.model.parameters()).device
+        
+        # Ensure initial sequence is a PyTorch tensor
+        if not isinstance(initial_sequence, torch.Tensor):
+            initial_sequence = torch.tensor(initial_sequence, dtype=torch.float32)
+
+        # Add batch dimension if necessary
+        if initial_sequence.dim() == 4:
+            initial_sequence = initial_sequence.unsqueeze(0)
+
+        # Move the initial sequence to the same device as the model
+        initial_sequence = initial_sequence.to(device)
+
+        # Initialize the inferred sequence with the initial sequence
+        inferred_sequence = [initial_sequence]
+
+        # Initialize a dictionary to store the inferred states
+        inferred_states = {}
+
+        with torch.no_grad():
+            for t in range(num_timesteps):
+                # Get the last sequence_length states from the inferred sequence
+                input_sequence = torch.cat(inferred_sequence[-self.sequence_length:], dim=1)
+
+                # Perform inference
+                next_state, _ = self.model(input_sequence)
+
+                # Append the inferred next state to the sequence
+                inferred_sequence.append(next_state.unsqueeze(1))
+
+                # Store the inferred state in the dictionary
+                inferred_states[t + 1] = next_state.cpu().numpy()
+
+        # Concatenate the inferred sequence along the time dimension
+        inferred_sequence = torch.cat(inferred_sequence, dim=1)
+
+        return inferred_sequence, inferred_states
 
     def plot_losses(self):
         plt.figure(figsize=(10, 5))
