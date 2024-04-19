@@ -245,12 +245,13 @@ class TrainerPairs:
 
 
 class TrainerSeries:
-    def __init__(self, model, optimizer, criterion, device, sequence_length, model_name="", checkpoint_dir="model_checkpoints"):
+    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-        self.sequence_length = sequence_length
+
+
         self.model_name = model_name.strip()
         self.checkpoint_dir = checkpoint_dir.strip()
         self.training_losses = []
@@ -304,7 +305,10 @@ class TrainerSeries:
 
         # After training, plot the training and validation losses
         self.plot_losses()
-
+        
+        self.sequence_length = train_loader.dataset.dataset.sequence_length
+        self.scaling_factors = train_loader.dataset.dataset.scaling_factors
+    
     def validate(self, val_loader):
         self.model.eval()
         total_val_loss = 0
@@ -368,45 +372,130 @@ class TrainerSeries:
         avg_loss = total_loss / len(test_loader)
         print(f'Test Loss: {avg_loss:.4f}')
 
-    def infer(self, initial_sequence, num_timesteps, sequence_length):
+
+    def create_inference_input(self, root_dir, model_number, state_number, array_size):
+        # Construct the file paths based on the provided parameters
+        model_dir = os.path.join(root_dir, str(model_number))
+        elevation_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'elevation', f'{model_number}_elevation.npy')
+        velocity_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity', f'{model_number}_velocity_{state_number}.npy')
+        thickness_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness', f'{model_number}_thickness_{state_number}.npy')
+
+        # Load the data arrays
+        elevation = np.load(elevation_file)
+        velocity = np.load(velocity_file)
+        thickness = np.load(thickness_file)
+
+        # Scale the data arrays
+        min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors
+        elevation_scaled = (elevation - min_elevation) / (max_elevation - min_elevation) * 10
+        velocity_scaled = (velocity - min_velocity) / (max_velocity - min_velocity) * 10
+        thickness_scaled = (thickness - min_thickness) / (max_thickness - min_thickness) * 10
+
+        # Stack the scaled data arrays to create the input tensor
+        input_data = np.stack((elevation_scaled, thickness_scaled, velocity_scaled), axis=0)
+
+        # Convert to PyTorch tensor and move to the specified device
+        input_tensor = torch.from_numpy(input_data).float().to(self.device)
+
+        return input_tensor
+
+
+    def infer(self, initial_sequence, num_timesteps):
         self.model.eval()
-        device = next(self.model.parameters()).device
+        device = self.device
+        sequence_length = self.sequence_length
+        scaling_factors = self.scaling_factors
         
-        # Ensure initial sequence is a PyTorch tensor
+        # Ensure initial_sequence is a PyTorch tensor
         if not isinstance(initial_sequence, torch.Tensor):
             initial_sequence = torch.tensor(initial_sequence, dtype=torch.float32)
-
-        # Add batch dimension if necessary
-        if initial_sequence.dim() == 4:
-            initial_sequence = initial_sequence.unsqueeze(0)
 
         # Move the initial sequence to the same device as the model
         initial_sequence = initial_sequence.to(device)
 
-        # Initialize the inferred sequence with the initial sequence
-        inferred_sequence = [initial_sequence]
+        # Extract the elevation channel from the initial sequence
+        elevation = initial_sequence[0].unsqueeze(0)
+
+        # Initialize the input tensor with the initial sequence
+        input_tensor = [initial_sequence]
 
         # Initialize a dictionary to store the inferred states
         inferred_states = {}
 
         with torch.no_grad():
             for t in range(num_timesteps):
-                # Get the last sequence_length states from the inferred sequence
-                input_sequence = torch.cat(inferred_sequence[-self.sequence_length:], dim=1)
+                # Pad the input tensor with zeros if it's shorter than the sequence length
+                while len(input_tensor) < sequence_length:
+                    input_tensor.insert(0, torch.zeros_like(initial_sequence))
+                
+                # Construct the input sequence
+                input_sequence = torch.stack(input_tensor[-sequence_length:], dim=0)  # Shape: [seq_length, channels, height, width]
+                input_sequence = input_sequence.unsqueeze(0)  # Add batch dimension: [1, seq_length, channels, height, width]
 
                 # Perform inference
                 next_state, _ = self.model(input_sequence)
 
-                # Append the inferred next state to the sequence
-                inferred_sequence.append(next_state.unsqueeze(1))
+                # Scale and store the output
+                min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+                next_state_unscaled = next_state.clone()
+                next_state_unscaled[:, 0, ...] = next_state[:, 0, ...] * (max_thickness - min_thickness) / 10 + min_thickness
+                next_state_unscaled[:, 1, ...] = next_state[:, 1, ...] * (max_velocity - min_velocity) / 10 + min_velocity
+                inferred_states[t + 1] = next_state_unscaled.squeeze(0).cpu().numpy()
 
-                # Store the inferred state in the dictionary
-                inferred_states[t + 1] = next_state.cpu().numpy()
+                # Stack the elevation channel with the inferred next state
+                next_state_with_elevation = torch.cat((elevation, next_state.squeeze(0)), dim=0)
 
-        # Concatenate the inferred sequence along the time dimension
-        inferred_sequence = torch.cat(inferred_sequence, dim=1)
+                # Append the inferred next state with elevation to the input tensor
+                input_tensor.append(next_state_with_elevation)
 
-        return inferred_sequence, inferred_states
+        return inferred_states
+
+    # def infer(self, initial_sequence, num_timesteps):
+    #     self.model.eval()
+    #     device = next(self.model.parameters()).device
+    #     scaling_factors = self.scaling_factors
+        
+    #     # Ensure initial sequence is a PyTorch tensor
+    #     if not isinstance(initial_sequence, torch.Tensor):
+    #         initial_sequence = torch.tensor(initial_sequence, dtype=torch.float32)
+
+    #     # Add batch dimension if necessary
+    #     if initial_sequence.dim() == 4:
+    #         initial_sequence = initial_sequence.unsqueeze(0)
+
+    #     # Move the initial sequence to the same device as the model
+    #     initial_sequence = initial_sequence.to(device)
+
+    #     # Initialize the inferred sequence with the initial sequence
+    #     inferred_sequence = [initial_sequence]
+
+    #     # Initialize a dictionary to store the inferred states
+    #     inferred_states = {}
+
+    #     with torch.no_grad():
+    #         for t in range(num_timesteps):
+    #             # Get the last sequence_length states from the inferred sequence
+    #             input_sequence = torch.cat(inferred_sequence[-self.sequence_length:], dim=1)
+
+    #             # Perform inference
+    #             next_state, _ = self.model(input_sequence)
+
+    #             # Unscale the inferred next state
+    #             min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+    #             next_state_unscaled = next_state.clone()
+    #             next_state_unscaled[0, 0, ...] = next_state[0, 0, ...] * (max_thickness - min_thickness) / 10 + min_thickness
+    #             next_state_unscaled[0, 1, ...] = next_state[0, 1, ...] * (max_velocity - min_velocity) / 10 + min_velocity
+
+    #             # Append the unscaled inferred next state to the sequence
+    #             inferred_sequence.append(next_state_unscaled.unsqueeze(1))
+
+    #             # Store the unscaled inferred state in the dictionary
+    #             inferred_states[t + 1] = next_state_unscaled.cpu().numpy()
+
+    #     # Concatenate the inferred sequence along the time dimension
+    #     inferred_sequence = torch.cat(inferred_sequence, dim=1)
+
+    #     return inferred_sequence, inferred_states
 
     def plot_losses(self):
         plt.figure(figsize=(10, 5))
