@@ -62,6 +62,8 @@ class TrainerPairs:
         # After training, plot the training and validation losses
         self.plot_losses()
 
+        self.scaling_factors = train_loader.dataset.dataset.scaling_factors
+
     def validate(self, val_loader):
         self.model.eval()
         total_val_loss = 0
@@ -119,6 +121,74 @@ class TrainerPairs:
                 total_loss += loss.item()
         avg_loss = total_loss / len(test_loader)
         print(f'Test Loss: {avg_loss:.4f}')
+
+
+    def create_inference_input(self, root_dir, model_number, state_number, array_size):
+        # Construct the file paths based on the provided parameters
+        model_dir = os.path.join(root_dir, str(model_number))
+        elevation_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'elevation', f'{model_number}_elevation.npy')
+        velocity_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity', f'{model_number}_velocity_{state_number}.npy')
+        thickness_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness', f'{model_number}_thickness_{state_number}.npy')
+
+        # Load the data arrays
+        elevation = np.load(elevation_file)
+        velocity = np.load(velocity_file)
+        thickness = np.load(thickness_file)
+
+        # Scale the data arrays
+        min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors
+        elevation_scaled = (elevation - min_elevation) / (max_elevation - min_elevation) * 10
+        velocity_scaled = (velocity - min_velocity) / (max_velocity - min_velocity) * 10
+        thickness_scaled = (thickness - min_thickness) / (max_thickness - min_thickness) * 10
+
+        # Stack the scaled data arrays to create the input tensor
+        input_data = np.stack((elevation_scaled, thickness_scaled, velocity_scaled), axis=0)
+
+        # Convert to PyTorch tensor and move to the specified device
+        input_tensor = torch.from_numpy(input_data).float().to(self.device)
+
+        return input_tensor
+
+    def infer(self, initial_input, num_timesteps):
+        self.model.eval()
+        device = self.device
+        scaling_factors = self.scaling_factors
+        
+        # Ensure initial_input is a PyTorch tensor
+        if not isinstance(initial_input, torch.Tensor):
+            initial_input = torch.tensor(initial_input, dtype=torch.float32)
+
+        # Move the initial input to the same device as the model
+        initial_input = initial_input.to(device)
+
+        # Extract the elevation channel from the initial input
+        elevation = initial_input[0].unsqueeze(0)
+
+        # Initialize the input tensor with the initial input
+        input_tensor = initial_input.unsqueeze(0)  # Add batch dimension
+
+        # Initialize a dictionary to store the inferred states
+        inferred_states = {}
+
+        with torch.no_grad():
+            for t in range(num_timesteps):
+                # Perform inference
+                next_state = self.model(input_tensor)
+
+                # Scale and store the output
+                min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+                next_state_unscaled = next_state.clone()
+                next_state_unscaled[:, 0, ...] = next_state[:, 0, ...] * (max_thickness - min_thickness) / 10 + min_thickness
+                next_state_unscaled[:, 1, ...] = next_state[:, 1, ...] * (max_velocity - min_velocity) / 10 + min_velocity
+                inferred_states[t + 1] = next_state_unscaled.squeeze(0).cpu().numpy()
+
+                # Stack the elevation channel with the inferred next state
+                next_state_with_elevation = torch.cat((elevation, next_state.squeeze(0)), dim=0)
+
+                # Update the input tensor for the next iteration
+                input_tensor = next_state_with_elevation.unsqueeze(0)  # Add batch dimension
+
+        return inferred_states
 
     def plot_predictions(self, loader, num_predictions=5):
         self.model.eval()
@@ -450,122 +520,77 @@ class TrainerSeries:
 
         return inferred_states
 
-    # def infer(self, initial_sequence, num_timesteps):
+
+
+    # def plot_losses(self):
+    #     plt.figure(figsize=(10, 5))
+    #     plt.plot(self.training_losses, label='Training Loss')
+    #     plt.plot(self.validation_losses, label='Validation Loss')
+    #     plt.title('Training and Validation Losses')
+    #     plt.xlabel('Epochs')
+    #     plt.ylabel('Loss')
+    #     plt.legend()
+    #     plt.grid(True)
+    #     plt.tight_layout()
+
+    #     # Save the plot as an image file
+    #     plot_file = 'loss_plot.png'
+    #     plot_path = os.path.join(self.checkpoint_dir, plot_file)
+    #     plt.savefig(plot_path)
+    #     print(f'Loss plot saved to {plot_path}')
+
+    #     # Show the plot
+    #     plt.show()
+
+    # def plot_predictions(self, test_loader, num_predictions=5):
     #     self.model.eval()
-    #     device = next(self.model.parameters()).device
-    #     scaling_factors = self.scaling_factors
-        
-    #     # Ensure initial sequence is a PyTorch tensor
-    #     if not isinstance(initial_sequence, torch.Tensor):
-    #         initial_sequence = torch.tensor(initial_sequence, dtype=torch.float32)
-
-    #     # Add batch dimension if necessary
-    #     if initial_sequence.dim() == 4:
-    #         initial_sequence = initial_sequence.unsqueeze(0)
-
-    #     # Move the initial sequence to the same device as the model
-    #     initial_sequence = initial_sequence.to(device)
-
-    #     # Initialize the inferred sequence with the initial sequence
-    #     inferred_sequence = [initial_sequence]
-
-    #     # Initialize a dictionary to store the inferred states
-    #     inferred_states = {}
-
     #     with torch.no_grad():
-    #         for t in range(num_timesteps):
-    #             # Get the last sequence_length states from the inferred sequence
-    #             input_sequence = torch.cat(inferred_sequence[-self.sequence_length:], dim=1)
+    #         for i, (sequence, next_state) in enumerate(test_loader):
+    #             if i >= num_predictions:
+    #                 break
 
-    #             # Perform inference
-    #             next_state, _ = self.model(input_sequence)
+    #             sequence = sequence.to(self.device)
+    #             next_state = next_state.to(self.device)
 
-    #             # Unscale the inferred next state
-    #             min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
-    #             next_state_unscaled = next_state.clone()
-    #             next_state_unscaled[0, 0, ...] = next_state[0, 0, ...] * (max_thickness - min_thickness) / 10 + min_thickness
-    #             next_state_unscaled[0, 1, ...] = next_state[0, 1, ...] * (max_velocity - min_velocity) / 10 + min_velocity
+    #             predictions, _ = self.model(sequence)
 
-    #             # Append the unscaled inferred next state to the sequence
-    #             inferred_sequence.append(next_state_unscaled.unsqueeze(1))
+    #             # Move the data back to the CPU for plotting
+    #             next_state = next_state.cpu().numpy()
+    #             predictions = predictions.cpu().numpy()
 
-    #             # Store the unscaled inferred state in the dictionary
-    #             inferred_states[t + 1] = next_state_unscaled.cpu().numpy()
+    #             # Plot the expected and predicted results side by side
+    #             fig, axes = plt.subplots(3, 2, figsize=(12, 18))
 
-    #     # Concatenate the inferred sequence along the time dimension
-    #     inferred_sequence = torch.cat(inferred_sequence, dim=1)
+    #             # Process and plot each type of data (thickness, velocity)
+    #             for index, title in enumerate(['Thickness', 'Velocity']):
+    #                 # Determine color limits based on the expected values
+    #                 vmin = np.min(next_state[0, index])
+    #                 vmax = np.max(next_state[0, index])
 
-    #     return inferred_sequence, inferred_states
+    #                 # Expected
+    #                 im = axes[index, 0].imshow(next_state[0, index], cmap='viridis', vmin=vmin, vmax=vmax)
+    #                 axes[index, 0].set_title(f"Expected {title}")
+    #                 axes[index, 0].axis('off')
+    #                 fig.colorbar(im, ax=axes[index, 0], orientation='vertical')
 
-    def plot_losses(self):
-        plt.figure(figsize=(10, 5))
-        plt.plot(self.training_losses, label='Training Loss')
-        plt.plot(self.validation_losses, label='Validation Loss')
-        plt.title('Training and Validation Losses')
-        plt.xlabel('Epochs')
-        plt.ylabel('Loss')
-        plt.legend()
-        plt.grid(True)
-        plt.tight_layout()
+    #                 # Predicted
+    #                 im = axes[index, 1].imshow(predictions[0, index], cmap='viridis', vmin=vmin, vmax=vmax)
+    #                 axes[index, 1].set_title(f"Predicted {title}")
+    #                 axes[index, 1].axis('off')
+    #                 fig.colorbar(im, ax=axes[index, 1], orientation='vertical')
 
-        # Save the plot as an image file
-        plot_file = 'loss_plot.png'
-        plot_path = os.path.join(self.checkpoint_dir, plot_file)
-        plt.savefig(plot_path)
-        print(f'Loss plot saved to {plot_path}')
+    #             # Compute and plot the differences for thickness and velocity
+    #             for index, title in enumerate(['Thickness', 'Velocity']):
+    #                 diff = np.abs(next_state[0, index] - predictions[0, index])
+    #                 vmax = np.max(diff)  # Dynamic range based on the actual differences observed
 
-        # Show the plot
-        plt.show()
+    #                 im = axes[2, index].imshow(diff, cmap='hot', vmin=0, vmax=vmax)
+    #                 axes[2, index].set_title(f"Difference in {title}")
+    #                 axes[2, index].axis('off')
+    #                 fig.colorbar(im, ax=axes[2, index], orientation='vertical')
 
-    def plot_predictions(self, test_loader, num_predictions=5):
-        self.model.eval()
-        with torch.no_grad():
-            for i, (sequence, next_state) in enumerate(test_loader):
-                if i >= num_predictions:
-                    break
-
-                sequence = sequence.to(self.device)
-                next_state = next_state.to(self.device)
-
-                predictions, _ = self.model(sequence)
-
-                # Move the data back to the CPU for plotting
-                next_state = next_state.cpu().numpy()
-                predictions = predictions.cpu().numpy()
-
-                # Plot the expected and predicted results side by side
-                fig, axes = plt.subplots(3, 2, figsize=(12, 18))
-
-                # Process and plot each type of data (thickness, velocity)
-                for index, title in enumerate(['Thickness', 'Velocity']):
-                    # Determine color limits based on the expected values
-                    vmin = np.min(next_state[0, index])
-                    vmax = np.max(next_state[0, index])
-
-                    # Expected
-                    im = axes[index, 0].imshow(next_state[0, index], cmap='viridis', vmin=vmin, vmax=vmax)
-                    axes[index, 0].set_title(f"Expected {title}")
-                    axes[index, 0].axis('off')
-                    fig.colorbar(im, ax=axes[index, 0], orientation='vertical')
-
-                    # Predicted
-                    im = axes[index, 1].imshow(predictions[0, index], cmap='viridis', vmin=vmin, vmax=vmax)
-                    axes[index, 1].set_title(f"Predicted {title}")
-                    axes[index, 1].axis('off')
-                    fig.colorbar(im, ax=axes[index, 1], orientation='vertical')
-
-                # Compute and plot the differences for thickness and velocity
-                for index, title in enumerate(['Thickness', 'Velocity']):
-                    diff = np.abs(next_state[0, index] - predictions[0, index])
-                    vmax = np.max(diff)  # Dynamic range based on the actual differences observed
-
-                    im = axes[2, index].imshow(diff, cmap='hot', vmin=0, vmax=vmax)
-                    axes[2, index].set_title(f"Difference in {title}")
-                    axes[2, index].axis('off')
-                    fig.colorbar(im, ax=axes[2, index], orientation='vertical')
-
-                plt.tight_layout()
-                plt.show()
+    #             plt.tight_layout()
+    #             plt.show()
 
 class CustomDebrisLoss(nn.Module):
     def __init__(self, loss_fn_zero=nn.MSELoss(), loss_fn_debris=nn.L1Loss(), debris_weight=0.75):
