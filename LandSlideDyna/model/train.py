@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import json
 import matplotlib.pyplot as plt
+import math
 
 from torch.utils.data import DataLoader
 
@@ -19,6 +20,7 @@ class TrainerPairs:
         self.checkpoint_dir = checkpoint_dir.strip()
         self.training_losses = []
         self.validation_losses = []
+        self.custom_loss = CustomDebrisLoss()
 
         # Ensure the checkpoint directory exists
         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
@@ -28,13 +30,13 @@ class TrainerPairs:
         self.model.train()
         for epoch in range(epochs):
             total_loss = 0.0
-            for current, next_velocity in train_loader:
+            for current, next_state in train_loader:
                 current = current.to(self.device)
-                next_velocity = next_velocity.to(self.device)
+                next_state = next_state.to(self.device)
                 
                 self.optimizer.zero_grad()
                 predictions = self.model(current)
-                loss = self.criterion(predictions, next_velocity)
+                loss = self.criterion(predictions, next_state)
                 loss.backward()
                 self.optimizer.step()
                 
@@ -68,11 +70,11 @@ class TrainerPairs:
         self.model.eval()
         total_val_loss = 0
         with torch.no_grad():
-            for current, next_velocity in val_loader:
+            for current, next_state in val_loader:
                 current = current.to(self.device)
-                next_velocity = next_velocity.to(self.device)
+                next_state = next_state.to(self.device)
                 predictions = self.model(current)
-                loss = self.criterion(predictions, next_velocity)
+                loss = self.criterion(predictions, next_state)
                 total_val_loss += loss.item()
         avg_val_loss = total_val_loss / len(val_loader)
         print(f'Validation Loss: {avg_val_loss:.4f}')
@@ -83,6 +85,11 @@ class TrainerPairs:
         checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_file)
         torch.save(self.model.state_dict(), checkpoint_path)
         print(f'Model saved to {checkpoint_path}')
+
+    def load_checkpoint(self, checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        self.model.load_state_dict(checkpoint)
+        print(f'Model loaded from {checkpoint_path}')
 
     def save_losses(self, epoch):
         losses_file = f'losses_epoch_{epoch}.json'
@@ -108,19 +115,78 @@ class TrainerPairs:
         self.validation_losses = losses['validation_losses']
         print(f'Losses loaded from {losses_path}')
 
+
+    # def test(self, test_loader):
+    #     self.model.eval()
+    #     mse_criterion = nn.MSELoss()
+    #     total_l1_loss = 0
+    #     total_mse = 0
+    #     total_psnr = 0
+        
+    #     with torch.no_grad():
+    #         for current, next_state in test_loader:
+    #             current = current.to(self.device)
+    #             next_state = next_state.to(self.device)
+                
+    #             predictions = self.model(current)
+    #             l1_loss = self.criterion(predictions, next_state)
+    #             mse_loss = mse_criterion(predictions, next_state)
+                
+    #             total_l1_loss += l1_loss.item()
+    #             total_mse += mse_loss.item()
+                
+    #             # PSNR calculation using a constant maximum debris velocity of 30
+    #             max_velocity = 30  # Use the known maximum possible velocity
+    #             psnr = 20 * math.log10(max_velocity) - 10 * math.log10(mse_loss.item())
+    #             total_psnr += psnr
+        
+    #     avg_l1_loss = total_l1_loss / len(test_loader)
+    #     avg_mse = total_mse / len(test_loader)
+    #     avg_rmse = math.sqrt(avg_mse)
+    #     avg_psnr = total_psnr / len(test_loader)
+
+    #     print(f'Test L1 Loss: {avg_l1_loss:.4f}')
+    #     print(f'Test MSE: {avg_mse:.4f}')
+    #     print(f'Test RMSE: {avg_rmse:.4f}')
+    #     print(f'Test PSNR: {avg_psnr:.4f}')
+
     def test(self, test_loader):
         self.model.eval()
-        total_loss = 0
+        mse_criterion = nn.MSELoss()
+        total_custom_loss = 0
+        total_l1_loss = 0
+        total_mse = 0
+        total_psnr = 0
+        
         with torch.no_grad():
-            for current, next_velocity in test_loader:
+            for current, next_state in test_loader:
                 current = current.to(self.device)
-                next_velocity = next_velocity.to(self.device)
+                next_state = next_state.to(self.device)
                 
                 predictions = self.model(current)
-                loss = self.criterion(predictions, next_velocity)
-                total_loss += loss.item()
-        avg_loss = total_loss / len(test_loader)
-        print(f'Test Loss: {avg_loss:.4f}')
+                custom_loss = self.custom_loss(predictions, next_state)  # Calculate custom loss
+                l1_loss = self.criterion(predictions, next_state)
+                mse_loss = mse_criterion(predictions, next_state)
+                
+                total_custom_loss += custom_loss.item()
+                total_l1_loss += l1_loss.item()
+                total_mse += mse_loss.item()
+                
+                max_velocity = 30
+                psnr = 20 * math.log10(max_velocity) - 10 * math.log10(mse_loss.item())
+                total_psnr += psnr
+        
+        avg_custom_loss = total_custom_loss / len(test_loader)
+        avg_l1_loss = total_l1_loss / len(test_loader)
+        avg_mse = total_mse / len(test_loader)
+        avg_rmse = math.sqrt(avg_mse)
+        avg_psnr = total_psnr / len(test_loader)
+
+        print(f'Test Custom Loss: {avg_custom_loss:.4f}')
+        print(f'Test L1 Loss: {avg_l1_loss:.4f}')
+        print(f'Test MSE: {avg_mse:.4f}')
+        print(f'Test RMSE: {avg_rmse:.4f}')
+        print(f'Test PSNR: {avg_psnr:.4f}')
 
 
     def create_inference_input(self, root_dir, model_number, state_number, array_size):

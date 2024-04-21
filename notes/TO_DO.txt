@@ -1,12 +1,4 @@
 
-- do simple infer loop for pair model
-- Check series inference code actually works
-
-- Add unscaling logic for inference. Need to scale back again.
-
-- run one of the test models through - find a good one.
-    - do some more difference plots. Train for say 60s, and get 0, 15, 30, 45, 50
-
 
 
 Experimentation

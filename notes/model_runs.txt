@@ -1,0 +1,13 @@
+2024-04-20_base_model_comparison_l1Loss_batch32
+    batch_size = 32
+    split_proportions = (0.7, 0.15, 0.15)
+    epochs = 30
+    criterion = nn.L1Loss()
+    optimizer = Adam(model.parameters(), lr=1e-3)
+
+    models = [
+    {'model': CNN(), 'name': f'{date}_{experiment}_CNN'},
+    {'model': UNet(in_channels=in_channels, out_channels=out_channels, features=[64, 128, 256]), 'name': f'{date}_{experiment}_SmallUNet'}, 
+    {'model': UNet(in_channels=in_channels, out_channels=out_channels, features=[64, 128, 256, 512]), 'name': f'{date}_{experiment}_MedUNet'}, 
+    {'model': UNet(in_channels=in_channels, out_channels=out_channels, features=[64, 128, 256, 512, 1024]), 'name': f'{date}_{experiment}_LargeUNet'}
+    ]
