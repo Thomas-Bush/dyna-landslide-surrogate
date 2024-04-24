@@ -5,12 +5,14 @@ class PTFDataExtractor:
     def __init__(self, d3plot_executable):
         """
         Initialize the PTFDataExtractor with the required path to d3plot executable.
+        Esssentially a batch script to execute the extractor in multiple files.
 
         Args:
             d3plot_executable (str): The path to the d3plot executable.
         """
         self.d3plot_executable = d3plot_executable
         self.js_path = "d3plot_data_extractor.js"
+
 
     def run_js_in_ptf(self, ptf_path, raw_data_dir=None):
         """
@@ -29,6 +31,7 @@ class PTFDataExtractor:
         subprocess.run([self.d3plot_executable, ptf_path, "-js=" + abs_js_path, "-exit"],
                        check=True, cwd=raw_data_dir)
 
+
     def run(self, ptf_path):
         """
         Process the provided .ptf file.
@@ -40,7 +43,4 @@ class PTFDataExtractor:
 
 
 
-class PTFImageExtractor:
-    def __init__(self):
-        pass
 

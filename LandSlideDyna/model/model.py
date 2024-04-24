@@ -6,45 +6,111 @@ import torch.nn.functional as F
 
 ### STANDALONE CNNs ###
 
+# Added dropout2D
 class CNN(nn.Module):
-    def __init__(self):
+    def __init__(self, dropout_rate=0.25):
         super(CNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)  # Input: 3 channels, Output: 32 channels
         self.bn1 = nn.BatchNorm2d(32)
+        self.dropout1 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the first batch norm
+        
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
+        self.dropout2 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the second batch norm
+
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
+        self.dropout3 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the third batch norm
+
         self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
         self.bn4 = nn.BatchNorm2d(256)
+        self.dropout4 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the fourth batch norm
+
         self.pool = nn.MaxPool2d(2, 2)
         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+
         self.conv5 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
         self.bn5 = nn.BatchNorm2d(128)
+        self.dropout5 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the fifth batch norm
+
         self.conv6 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
         self.bn6 = nn.BatchNorm2d(64)
+        self.dropout6 = nn.Dropout2d(p=dropout_rate)  # Dropout layer after the sixth batch norm
+
         self.conv7 = nn.Conv2d(64, 2, kernel_size=3, padding=1)  # Output: 2 channels (velocity and thickness)
 
     def forward(self, x):
         # Encoder path
-        x1 = F.relu(self.bn1(self.conv1(x)))     # 64x64x32
-        x2 = self.pool(x1)                       # 32x32x32
-        x3 = F.relu(self.bn2(self.conv2(x2)))    # 32x32x64
-        x4 = self.pool(x3)                       # 16x16x64
-        x5 = F.relu(self.bn3(self.conv3(x4)))    # 16x16x128
-        x6 = self.pool(x5)                       # 8x8x128
-        x7 = F.relu(self.bn4(self.conv4(x6)))    # 8x8x256
+        x1 = F.relu(self.bn1(self.conv1(x)))  # 64x64x32
+        x1 = self.dropout1(x1)
+        x2 = self.pool(x1)                    # 32x32x32
+
+        x3 = F.relu(self.bn2(self.conv2(x2)))  # 32x32x64
+        x3 = self.dropout2(x3)
+        x4 = self.pool(x3)                     # 16x16x64
+
+        x5 = F.relu(self.bn3(self.conv3(x4)))  # 16x16x128
+        x5 = self.dropout3(x5)
+        x6 = self.pool(x5)                     # 8x8x128
+
+        x7 = F.relu(self.bn4(self.conv4(x6)))  # 8x8x256
+        x7 = self.dropout4(x7)
 
         # Decoder path
-        x8 = self.up(x7)                         # 16x16x256
-        x9 = F.relu(self.bn5(self.conv5(x8)))    # 16x16x128
-        x10 = self.up(x9)                        # 32x32x128
+        x8 = self.up(x7)                       # 16x16x256
+        x9 = F.relu(self.bn5(self.conv5(x8)))  # 16x16x128
+        x9 = self.dropout5(x9)
+
+        x10 = self.up(x9)                      # 32x32x128
         x11 = F.relu(self.bn6(self.conv6(x10)))  # 32x32x64
-        x12 = self.up(x11)                       # 64x64x64
+        x11 = self.dropout6(x11)
+
+        x12 = self.up(x11)                     # 64x64x64
 
         # Output layer
-        x13 = self.conv7(x12)                    # 64x64x2
+        x13 = self.conv7(x12)                  # 64x64x2
         return x13
+
+
+# class CNN(nn.Module):
+#     def __init__(self):
+#         super(CNN, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)  # Input: 3 channels, Output: 32 channels
+#         self.bn1 = nn.BatchNorm2d(32)
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+#         self.bn2 = nn.BatchNorm2d(64)
+#         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+#         self.bn3 = nn.BatchNorm2d(128)
+#         self.conv4 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+#         self.bn4 = nn.BatchNorm2d(256)
+#         self.pool = nn.MaxPool2d(2, 2)
+#         self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+#         self.conv5 = nn.Conv2d(256, 128, kernel_size=3, padding=1)
+#         self.bn5 = nn.BatchNorm2d(128)
+#         self.conv6 = nn.Conv2d(128, 64, kernel_size=3, padding=1)
+#         self.bn6 = nn.BatchNorm2d(64)
+#         self.conv7 = nn.Conv2d(64, 2, kernel_size=3, padding=1)  # Output: 2 channels (velocity and thickness)
+
+#     def forward(self, x):
+#         # Encoder path
+#         x1 = F.relu(self.bn1(self.conv1(x)))     # 64x64x32
+#         x2 = self.pool(x1)                       # 32x32x32
+#         x3 = F.relu(self.bn2(self.conv2(x2)))    # 32x32x64
+#         x4 = self.pool(x3)                       # 16x16x64
+#         x5 = F.relu(self.bn3(self.conv3(x4)))    # 16x16x128
+#         x6 = self.pool(x5)                       # 8x8x128
+#         x7 = F.relu(self.bn4(self.conv4(x6)))    # 8x8x256
+
+#         # Decoder path
+#         x8 = self.up(x7)                         # 16x16x256
+#         x9 = F.relu(self.bn5(self.conv5(x8)))    # 16x16x128
+#         x10 = self.up(x9)                        # 32x32x128
+#         x11 = F.relu(self.bn6(self.conv6(x10)))  # 32x32x64
+#         x12 = self.up(x11)                       # 64x64x64
+
+#         # Output layer
+#         x13 = self.conv7(x12)                    # 64x64x2
+#         return x13
     
 class SimpleUNet(nn.Module):
     def __init__(self):
@@ -136,9 +202,11 @@ class LargeUNet(nn.Module):
 
         # Final convolution
         return self.final_conv(dec0)
-    
+
+# added dropout2D
+
 class UNet(nn.Module):
-    def __init__(self, in_channels, out_channels, features=[64, 128, 256, 512, 1024]):
+    def __init__(self, in_channels, out_channels, features=[64, 128, 256, 512, 1024], dropout_rate=0.25):
         super(UNet, self).__init__()
         self.encoders = nn.ModuleList()
         self.decoders = nn.ModuleList()
@@ -147,12 +215,12 @@ class UNet(nn.Module):
         # Encoder path
         for feature in features:
             self.encoders.append(
-                UNet._block(in_channels, feature)
+                UNet._block(in_channels, feature, dropout_rate)
             )
             in_channels = feature
         
         # Bottleneck
-        self.bottleneck = UNet._block(features[-1], features[-1] * 2)
+        self.bottleneck = UNet._block(features[-1], features[-1] * 2, dropout_rate)
 
         # Decoder path
         for feature in reversed(features):
@@ -160,18 +228,19 @@ class UNet(nn.Module):
                 nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
             )
             self.decoders.append(
-                UNet._block(feature * 2, feature)
+                UNet._block(feature * 2, feature, dropout_rate)
             )
         
         # Final convolution
         self.final_layer = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
     @staticmethod
-    def _block(in_channels, features):
+    def _block(in_channels, features, dropout_rate=0.5):
         return nn.Sequential(
             nn.Conv2d(in_channels, features, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(features),
             nn.ReLU(inplace=True),
+            nn.Dropout2d(dropout_rate),  # Using Dropout2d
             nn.Conv2d(features, features, kernel_size=3, padding=1, bias=False),
             nn.BatchNorm2d(features),
             nn.ReLU(inplace=True)
@@ -197,7 +266,7 @@ class UNet(nn.Module):
             x = self.decoders[idx](x)
             skip_connection = skip_connections[idx // 2]
 
-            # If the input sizes are different, resize the skip connection to match
+            # Resize skip connection if necessary
             if x.shape != skip_connection.shape:
                 x = F.interpolate(x, size=skip_connection.shape[2:])
 
@@ -205,6 +274,80 @@ class UNet(nn.Module):
             x = self.decoders[idx + 1](x)
 
         return self.final_layer(x)
+
+
+# class UNet(nn.Module):
+#     def __init__(self, in_channels, out_channels, features=[64, 128, 256, 512, 1024], dropout_rate=0.5):
+#         super(UNet, self).__init__()
+#         self.encoders = nn.ModuleList()
+#         self.decoders = nn.ModuleList()
+#         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        
+#         # Encoder path
+#         for feature in features:
+#             self.encoders.append(
+#                 UNet._block(in_channels, feature, dropout_rate)
+#             )
+#             in_channels = feature
+        
+#         # Bottleneck
+#         self.bottleneck = UNet._block(features[-1], features[-1] * 2, dropout_rate)
+
+#         # Decoder path
+#         for feature in reversed(features):
+#             self.decoders.append(
+#                 nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
+#             )
+#             self.decoders.append(
+#                 UNet._block(feature * 2, feature, dropout_rate)
+#             )
+        
+#         # Final convolution
+#         self.final_layer = nn.Conv2d(features[0], out_channels, kernel_size=1)
+
+#     @staticmethod
+#     def _block(in_channels, features, dropout_rate=0.5):
+#         return nn.Sequential(
+#             nn.Conv2d(in_channels, features, kernel_size=3, padding=1, bias=False),
+#             nn.BatchNorm2d(features),
+#             nn.ReLU(inplace=True),
+#             nn.Dropout(dropout_rate),  # Add dropout after activation
+#             nn.Conv2d(features, features, kernel_size=3, padding=1, bias=False),
+#             nn.BatchNorm2d(features),
+#             nn.ReLU(inplace=True)
+#         )
+
+#     def forward(self, x):
+#         skip_connections = []
+
+#         # Encoder
+#         for encoder in self.encoders:
+#             x = encoder(x)
+#             skip_connections.append(x)
+#             x = self.pool(x)
+
+#         # Bottleneck
+#         x = self.bottleneck(x)
+
+#         # Reverse the skip connections
+#         skip_connections = skip_connections[::-1]
+
+#         # Decoder
+#         for idx in range(0, len(self.decoders), 2):
+#             x = self.decoders[idx](x)
+#             skip_connection = skip_connections[idx // 2]
+
+#             # If the input sizes are different, resize the skip connection to match
+#             if x.shape != skip_connection.shape:
+#                 x = F.interpolate(x, size=skip_connection.shape[2:])
+
+#             x = torch.cat((skip_connection, x), dim=1)
+#             x = self.decoders[idx + 1](x)
+
+#         return self.final_layer(x)
+
+
+
     
 ### CNN-RNN HYBRIDS ###
 
@@ -396,52 +539,6 @@ class DecoderBlock(nn.Module):
         x = self.conv_block(x)
         return x
 
-# class UNetLSTM(nn.Module):
-#     def __init__(self, input_channels=3, output_channels=2, hidden_size=512):
-#         super().__init__()
-#         self.enc1 = EncoderBlock(input_channels, 16)
-#         self.enc2 = EncoderBlock(16, 32)
-#         self.enc3 = EncoderBlock(32, 64)
-#         self.enc4 = EncoderBlock(64, 128)
-#         self.enc5 = EncoderBlock(128, 256)
-#         self.conv_block = ConvBlock(256, 512)
-#         self.gap = nn.AdaptiveAvgPool2d((1, 1))
-#         self.lstm = nn.LSTM(512, hidden_size, batch_first=True)
-#         self.fc = nn.Linear(hidden_size, 512)
-#         self.reshape = nn.Unflatten(1, (512, 1, 1))
-#         self.dec5 = DecoderBlock(512, 256)
-#         self.dec4 = DecoderBlock(256, 128)
-#         self.dec3 = DecoderBlock(128, 64)
-#         self.dec2 = DecoderBlock(64, 32)
-#         self.dec1 = DecoderBlock(32, 16)
-#         self.final_conv = nn.Conv2d(16, output_channels, kernel_size=1)
-
-#     def forward(self, x):
-#         batch_size, seq_len, _, _, _ = x.size()
-#         outputs = []
-#         for t in range(seq_len):
-#             x_t, skip1 = self.enc1(x[:, t])
-#             x_t, skip2 = self.enc2(x_t)
-#             x_t, skip3 = self.enc3(x_t)
-#             x_t, skip4 = self.enc4(x_t)
-#             x_t, skip5 = self.enc5(x_t)
-#             x_t = self.conv_block(x_t)
-#             x_t = self.gap(x_t)
-#             x_t = x_t.view(batch_size, -1).unsqueeze(1)
-#             outputs.append(x_t)
-#         x = torch.cat(outputs, dim=1)
-
-#         x, _ = self.lstm(x)
-#         x = self.fc(x[:, -1, :])
-#         x = self.reshape(x)
-
-#         x = self.dec5(x, skip5)
-#         x = self.dec4(x, skip4)
-#         x = self.dec3(x, skip3)
-#         x = self.dec2(x, skip2)
-#         x = self.dec1(x, skip1)
-#         x = self.final_conv(x)
-#         return x, None
 
 class UNetLSTM(nn.Module):
     def __init__(self, input_channels=3, output_channels=2, hidden_size=512):

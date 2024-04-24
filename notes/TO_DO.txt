@@ -1,13 +1,18 @@
 
 
 
+
+
 Experimentation
 
 Install Optuna
 
 Phase 1 - Model Selection
-- simpler architecture, just do CNN, simple UNet, more complex UNet (match arch of final one)
+
 - Use literature to justify decision - similar results found by xyz
+
+- use inference logic in eval_pairs.
+
 
 Phase 2 - Hyper Parameter Optimization
 
@@ -25,10 +30,14 @@ If time, try to optimise these too.
 
 
 
-- do some more difference plots. Train for say 60s, and get 0, 15, 30, 45, 50
+
 
 
 - document code
+
+    - pre is done and ok.
+    - model isn't done yet
+    - do a search for words like "your, assume" etc
 
 - tidy up all folders for final
 

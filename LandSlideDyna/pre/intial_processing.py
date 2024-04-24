@@ -423,6 +423,7 @@ class ArrayConverter:
         }
         return state_dict
 
+
     @staticmethod
     def dataframe_to_elevation_array(df, x_col='Shell_X', y_col='Shell_Y', z_col='Shell_Z'):
         """
@@ -458,7 +459,6 @@ class ArrayConverter:
             elevation_array[y_idx, x_idx] = row[z_col]
 
         return elevation_array, unique_x, unique_y
-
 
 
     @staticmethod
@@ -503,7 +503,8 @@ class ArrayConverter:
                 state_arrays[i][y_idx, x_idx] = row[state_col]
 
         return state_arrays, state_labels, unique_x, unique_y
-    
+
+
     @staticmethod
     def flatten_to_max_value(state_arrays):
         """Flatten a list of 2D state arrays into a single array, keeping the maximum value.
@@ -517,10 +518,6 @@ class ArrayConverter:
         # Stack the arrays along a new dimension and then take the max along this new dimension
         max_value_array = np.max(np.stack(state_arrays), axis=0)
         return max_value_array
-
-
-
-    
     
 
 class InitialProcessPipeline:
@@ -550,6 +547,7 @@ class InitialProcessPipeline:
         """
         return self.data.get(key)
 
+
     def _export_array(self, array, subdir, filename):
         """Helper function to export a NumPy array to a file.
 
@@ -564,6 +562,7 @@ class InitialProcessPipeline:
 
         file_path = os.path.join(dir_path, filename)
         np.save(file_path, array)
+
 
     def export_processed_data(self):
         """Export processed data to the specified directory structure."""

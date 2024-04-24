@@ -24,6 +24,7 @@ class PreprocessingPipeline:
         self.status_dict = self.load_status()
         self.d3plot_exe = d3plot_executable
 
+
     def load_status(self):
         """Load the preprocessing status from a JSON file."""
         if os.path.exists(self.status_file):
@@ -33,10 +34,12 @@ class PreprocessingPipeline:
             status_dict = {}
         return status_dict
 
+
     def save_status(self):
         """Save the preprocessing status to a JSON file."""
         with open(self.status_file, 'w') as file:
             json.dump(self.status_dict, file, indent=4)
+
 
     def check_and_update_status(self):
         """Check the preprocessing status of each model in the data directory and update the status file."""
@@ -74,10 +77,12 @@ class PreprocessingPipeline:
         self.status_dict = status
         self.save_status()
 
+
     def save_status(self):
         """Save the preprocessing status to a JSON file."""
         with open(self.status_file, 'w') as file:
             json.dump(self.status_dict, file, indent=4)
+
 
     def process_models(self):
         """Process each model based on its preprocessing status."""
@@ -122,6 +127,7 @@ class PreprocessingPipeline:
 
             if not status.get("final_process", False):
                 pass
+
 
     def run(self):
         """Run the preprocessing pipeline."""

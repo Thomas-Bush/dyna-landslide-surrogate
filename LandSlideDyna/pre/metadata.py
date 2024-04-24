@@ -87,6 +87,7 @@ class ModelMetadata:
         self.data[f'{data_type}_state_array_dict'] = {str(k): v for k, v in sorted_state_data_dict.items()}
         self.data[f'{data_type}_summary_data_dict'] = summary_data_dict
 
+
     def _load_state_timesteps(self):
         """Loads the state timesteps from a CSV file and adds them to the data dictionary."""
         csv_file_path = os.path.join(self.states_dir, f"{self.model_id}_states.csv")
@@ -141,6 +142,7 @@ class ModelMetadata:
 
         self.calculate_debris_metrics()
 
+
     def calculate_grid_resolution(self, values):
         """Calculate the grid resolution based on the axis values.
 
@@ -152,7 +154,8 @@ class ModelMetadata:
         """
         return np.diff(values).mean() if len(values) > 1 else None
 
-    # Placeholder for calculate_average_timestep method
+
+
     def calculate_average_timestep(self):
         """Calculate the average timestep from a sequence of timestamps stored in self.data.
 
@@ -166,7 +169,6 @@ class ModelMetadata:
             timestep_differences = np.diff(sorted_timestamps)
             return np.mean(timestep_differences)
         return None
-
 
 
     def check_empty_states(self):
@@ -249,6 +251,7 @@ class ModelMetadata:
         self.metadata['overall_bounding_box']['center_x'] = (global_min_x + global_max_x) / 2
         self.metadata['overall_bounding_box']['center_y'] = (global_min_y + global_max_y) / 2
 
+
     def calculate_state_statistics(self):
         """Calculates and stores the max and average values of thickness and velocity for each state."""
         # Initialize the statistics metadata
@@ -325,6 +328,7 @@ class ModelMetadata:
             }
             prev_state_number = state_number  # Store the current state number for the next iteration
 
+
     def _calculate_occupied_area_change(self, previous_area, current_area):
         """Calculate the change in occupied area from the previous to the current state."""
         if previous_area is None:  # Handle the case where this is the first state
@@ -348,6 +352,7 @@ class ModelMetadata:
         # Write the metadata to the file
         with open(filepath, 'w') as f:
             json.dump(metadata_serializable, f, indent=4)  # use indent for pretty-printing
+
 
     def _convert_to_serializable(self, data):
         """Recursively convert NumPy types to Python types for JSON serialization."""

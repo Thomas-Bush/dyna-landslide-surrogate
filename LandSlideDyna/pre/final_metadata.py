@@ -52,7 +52,6 @@ class FinallMetadata:
         self._load_state_and_summary_data(self.velocity_dir, 'velocity')
 
 
-
     def _load_state_and_summary_data(self, directory, data_type):
         """Loads state-specific data and summary data from the given directory.
         
@@ -85,90 +84,6 @@ class FinallMetadata:
     def calculate_metadata(self):
         self.calculate_bounding_boxes()
     
-    # def calculate_metadata(self):
-    #     """Calculate and update the metadata based on the provided data."""
-    #     # Assuming that elevation_array_dict contains 'x_values', 'y_values', 'z_values'
-    #     elevation_dict = self.data['elevation_array_dict']
-    #     self.metadata['min_x_value'] = np.min(elevation_dict['x_values'])
-    #     self.metadata['max_x_value'] = np.max(elevation_dict['x_values'])
-    #     self.metadata['min_y_value'] = np.min(elevation_dict['y_values'])
-    #     self.metadata['max_y_value'] = np.max(elevation_dict['y_values'])
-    #     self.metadata['min_z_value'] = np.min(elevation_dict['z_values'])
-    #     self.metadata['max_z_value'] = np.max(elevation_dict['z_values'])
-
-    #     # Dimensions based on min and max values
-    #     self.metadata['x_dimension'] = self.metadata['max_x_value'] - self.metadata['min_x_value']
-    #     self.metadata['y_dimension'] = self.metadata['max_y_value'] - self.metadata['min_y_value']
-    #     self.metadata['z_dimension'] = self.metadata['max_z_value'] - self.metadata['min_z_value']
-
-    #     # Grid resolution calculation
-    #     self.metadata['grid_resolution_x'] = self.calculate_grid_resolution(elevation_dict['x_values'])
-    #     self.metadata['grid_resolution_y'] = self.calculate_grid_resolution(elevation_dict['y_values'])
-
-    #     # Total number of states and average timestep calculation
-    #     state_timesteps = self.data['state_timesteps']
-    #     self.metadata['total_number_of_states'] = len(state_timesteps)
-    #     self.metadata['average_timestep'] = self.calculate_average_timestep()
-    #     self.metadata['timesteps'] = state_timesteps
-
-    #     # Calculate more metadata
-    #     self.check_empty_states()
-
-    #     self.calculate_bounding_boxes()
-
-    #     self.calculate_state_statistics()
-
-    #     self.calculate_debris_metrics()
-
-    # def calculate_grid_resolution(self, values):
-    #     """Calculate the grid resolution based on the axis values.
-
-    #     Args:
-    #         values (np.ndarray): The values along an axis.
-
-    #     Returns:
-    #         float: The calculated grid resolution.
-    #     """
-    #     return np.diff(values).mean() if len(values) > 1 else None
-
-    # # Placeholder for calculate_average_timestep method
-    # def calculate_average_timestep(self):
-    #     """Calculate the average timestep from a sequence of timestamps stored in self.data.
-
-    #     Returns:
-    #         float or None: The average timestep calculated as the mean of the difference between sequential timestamps,
-    #                     or None if insufficient timestamps.
-    #     """
-    #     timestamps = pd.Series(self.data['state_timesteps'].values())
-    #     sorted_timestamps = timestamps.sort_values().values
-    #     if len(sorted_timestamps) > 1:
-    #         timestep_differences = np.diff(sorted_timestamps)
-    #         return np.mean(timestep_differences)
-    #     return None
-
-
-
-    # def check_empty_states(self):
-    #     """Checks each state and records which ones are empty (all zeroes).
-        
-    #     The result is stored in the class attribute `metadata` with a key 'empty_states', mapping each state number
-    #     to a boolean indicating whether it is empty or not.
-    #     """
-    #     # Initialize empty states metadata
-    #     self.metadata['empty_states'] = {}
-
-    #     # Get all state numbers from the thickness and velocity dicts (assuming they have the same keys)
-    #     state_numbers = self.data['thickness_state_array_dict'].keys()
-
-    #     # Loop over all state numbers and check for empty states
-    #     for state_number in state_numbers:
-    #         thickness_values = self.data['thickness_state_array_dict'][state_number]
-    #         velocity_values = self.data['velocity_state_array_dict'][state_number]
-
-    #         # Check if all values for a state are zero for both thickness and velocity
-    #         is_empty = np.all(thickness_values == 0) and np.all(velocity_values == 0)
-    #         self.metadata['empty_states'][state_number] = is_empty
-
 
     def calculate_bounding_boxes(self):
         """Calculates and stores the bounding box and its dimensions of the debris for every state,
@@ -228,88 +143,6 @@ class FinallMetadata:
         self.metadata['overall_bounding_box']['center_x'] = (global_min_x + global_max_x) / 2
         self.metadata['overall_bounding_box']['center_y'] = (global_min_y + global_max_y) / 2
 
-    # def calculate_state_statistics(self):
-    #     """Calculates and stores the max and average values of thickness and velocity for each state."""
-    #     # Initialize the statistics metadata
-    #     self.metadata['state_statistics'] = {}
-
-    #     # Use the keys from thickness_state_array_dict as they should match the velocity_state_array_dict keys
-    #     state_numbers = self.data['thickness_state_array_dict'].keys()
-
-    #     # Iterate over states
-    #     for state_number in state_numbers:
-    #         thickness_values = self.data['thickness_state_array_dict'][state_number]
-    #         velocity_values = self.data['velocity_state_array_dict'][state_number]
-
-    #         # Calculate max values
-    #         max_thickness = np.max(thickness_values)
-    #         max_velocity = np.max(velocity_values)
-
-    #         # Calculate averages (considering zeroes)
-    #         avg_thickness_incl_zeroes = np.mean(thickness_values)
-    #         avg_velocity_incl_zeroes = np.mean(velocity_values)
-
-    #         # Calculate averages (ignoring zeroes)
-    #         avg_thickness_excl_zeroes = np.mean(thickness_values[thickness_values > 0]) if np.any(thickness_values > 0) else 0
-    #         avg_velocity_excl_zeroes = np.mean(velocity_values[velocity_values > 0]) if np.any(velocity_values > 0) else 0
-
-    #         # Store in metadata
-    #         self.metadata['state_statistics'][state_number] = {
-    #             'max_thickness': max_thickness,
-    #             'max_velocity': max_velocity,
-    #             'avg_thickness_incl_zeroes': avg_thickness_incl_zeroes,
-    #             'avg_velocity_incl_zeroes': avg_velocity_incl_zeroes,
-    #             'avg_thickness_excl_zeroes': avg_thickness_excl_zeroes,
-    #             'avg_velocity_excl_zeroes': avg_velocity_excl_zeroes
-    #     }
-
-
-    # def calculate_debris_metrics(self):
-    #     """Calculates and stores various metrics for each state that could help identify a stopping condition."""
-    #     # Initialize the metrics metadata
-    #     self.metadata['debris_metrics'] = {}
-
-    #     previous_occupied_area = None
-
-    #     # Use the keys from thickness_state_array_dict as they should match the velocity_state_array_dict keys
-    #     state_numbers = self.data['thickness_state_array_dict'].keys()
-
-    #     # Iterate over states
-    #     for state_number in state_numbers:
-    #         thickness_values = self.data['thickness_state_array_dict'][state_number]
-    #         velocity_values = self.data['velocity_state_array_dict'][state_number]
-
-    #         # Calculate Occupied Area Change
-    #         occupied_area = np.count_nonzero(thickness_values)
-    #         occupied_area_change = self._calculate_occupied_area_change(previous_occupied_area, occupied_area)
-    #         previous_occupied_area = occupied_area  # Update for next iteration
-
-    #         # Calculate Standard Deviation of Velocity
-    #         std_dev_velocity = np.std(velocity_values)
-
-    #         # Calculate Standard Deviation of Thickness
-    #         std_dev_thickness = np.std(thickness_values)
-
-    #         # Calculate Temporal Stability
-    #         # Assuming temporal stability is represented by the variability in the occupied area across frames.
-    #         # This could be refined based on a more sophisticated definition of temporal stability.
-    #         temporal_stability = 0 if state_number == min(state_numbers) else self.metadata['debris_metrics'][prev_state_number]['occupied_area_change']
-
-    #         # Store in metadata
-    #         self.metadata['debris_metrics'][state_number] = {
-    #             'occupied_area_change': occupied_area_change,
-    #             'std_dev_velocity': std_dev_velocity,
-    #             'std_dev_thickness': std_dev_thickness,
-    #             'temporal_stability': temporal_stability
-    #         }
-    #         prev_state_number = state_number  # Store the current state number for the next iteration
-
-    # def _calculate_occupied_area_change(self, previous_area, current_area):
-    #     """Calculate the change in occupied area from the previous to the current state."""
-    #     if previous_area is None:  # Handle the case where this is the first state
-    #         return 0
-    #     return current_area - previous_area
-
     
     def save_metadata(self):
         """Saves the metadata to a JSON file named with the model_id in the model_dir directory."""
@@ -327,6 +160,7 @@ class FinallMetadata:
         # Write the metadata to the file
         with open(filepath, 'w') as f:
             json.dump(metadata_serializable, f, indent=4)  # use indent for pretty-printing
+
 
     def _convert_to_serializable(self, data):
         """Recursively convert NumPy types to Python types for JSON serialization."""
