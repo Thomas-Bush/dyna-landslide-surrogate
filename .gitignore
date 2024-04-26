@@ -5,9 +5,12 @@ __pycache__/
 
 # data
 data/
+data_prune/
 data_temp/
 data_small/
+data_small_prune/
 data_experiment/
+data_experiment_prune/
 ref/
 checkpoints/
 ss/

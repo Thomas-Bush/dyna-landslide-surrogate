@@ -7,27 +7,91 @@ import matplotlib.pyplot as plt
 import math
 
 from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
+
+# class TrainerPairs:
+#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+#         self.model = model
+#         self.optimizer = optimizer
+#         self.criterion = criterion
+#         self.device = device
+#         self.model_name = model_name.strip()
+#         self.checkpoint_dir = checkpoint_dir.strip()
+#         self.training_losses = []
+#         self.validation_losses = []
+#         self.custom_loss = CustomDebrisLoss()
+
+#         # Ensure the checkpoint directory exists
+#         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
+#         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+#     def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+#         self.model.train()
+#         for epoch in range(epochs):
+#             total_loss = 0.0
+#             for current, next_state in train_loader:
+#                 current = current.to(self.device)
+#                 next_state = next_state.to(self.device)
+                
+#                 self.optimizer.zero_grad()
+#                 predictions = self.model(current)
+#                 loss = self.criterion(predictions, next_state)
+#                 loss.backward()
+#                 self.optimizer.step()
+                
+#                 total_loss += loss.item()
+            
+#             avg_loss = total_loss / len(train_loader)
+#             self.training_losses.append(avg_loss)
+#             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
+
+#             # Validation step
+#             val_loss = self.validate(val_loader)
+#             self.validation_losses.append(val_loss)
+
+#             # Save the model at the specified checkpoint interval
+#             if (epoch + 1) % checkpoint_interval == 0:
+#                 self.save_checkpoint(epoch + 1)
+#                 self.save_losses(epoch + 1)
+
+#         # Save checkpoint after the final epoch
+#         self.save_checkpoint(epochs)
+
+#         # Save losses after the final epoch
+#         self.save_losses(epochs)
+
+#         # After training, plot the training and validation losses
+#         self.plot_losses()
+
+        # self.scaling_factors = train_loader.dataset.dataset.scaling_factors
 
 class TrainerPairs:
-    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
         self.model_name = model_name.strip()
-        self.checkpoint_dir = checkpoint_dir.strip()
+        self.checkpoint_dir = os.path.join(checkpoint_dir.strip(), model_name) if model_name else checkpoint_dir.strip()
         self.training_losses = []
         self.validation_losses = []
-        self.custom_loss = CustomDebrisLoss()
+        self.patience = patience
+        self.best_val_loss = float('inf')
+        self.epochs_no_improve = 0
+        self.early_stop = False
+        self.custom_loss = CustomDebrisLoss(debris_weight=0.4)
+
+        # Scheduler
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
 
         # Ensure the checkpoint directory exists
-        self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-    def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+    def train(self, train_loader, val_loader, epochs):
         self.model.train()
+        checkpoint_interval = 5  # Save every 5 epochs
         for epoch in range(epochs):
             total_loss = 0.0
             for current, next_state in train_loader:
@@ -49,14 +113,30 @@ class TrainerPairs:
             # Validation step
             val_loss = self.validate(val_loader)
             self.validation_losses.append(val_loss)
+            self.scheduler.step(val_loss)
+
+            # Optionally, print the current learning rate
+            current_lr = self.scheduler.get_last_lr()
+            print(f"Current Learning Rate: {current_lr}")
+
+            # Early stopping logic
+            if val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.epochs_no_improve = 0
+            else:
+                self.epochs_no_improve += 1
+                if self.epochs_no_improve >= self.patience:
+                    print("Early stopping")
+                    self.early_stop = True
+                    break
 
             # Save the model at the specified checkpoint interval
             if (epoch + 1) % checkpoint_interval == 0:
                 self.save_checkpoint(epoch + 1)
-                self.save_losses(epoch + 1)
 
-        # Save checkpoint after the final epoch
-        self.save_checkpoint(epochs)
+        # Save checkpoint after the final epoch if it does not align with the interval
+        if (epochs % checkpoint_interval != 0) and not self.early_stop:
+            self.save_checkpoint(epochs)
 
         # Save losses after the final epoch
         self.save_losses(epochs)
@@ -64,6 +144,7 @@ class TrainerPairs:
         # After training, plot the training and validation losses
         self.plot_losses()
 
+        # Retrieve scaling factors from the dataset for use in post-processing or inference
         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
 
     def validate(self, val_loader):
@@ -229,13 +310,41 @@ class TrainerPairs:
 
         return inferred_states
 
-
-
-    def plot_predictions(self, loader, num_predictions=5):
+    def get_predictions(self, loader):
         self.model.eval()
         with torch.no_grad():
             # Get the first batch of data
             current, next_velocity_thickness = next(iter(loader))
+            current = current.to(self.device)
+            next_velocity_thickness = next_velocity_thickness.to(self.device)
+            
+            # Generate predictions
+            predictions = self.model(current)
+            
+            # Move tensors back to the CPU for further processing/returning
+            current = current.cpu().numpy()
+            next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+            predictions = predictions.cpu().numpy()
+            
+            # Calculate the differences for velocity and thickness
+            differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
+            differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
+
+            return {
+                'current': current,
+                'next_velocity_thickness': next_velocity_thickness,
+                'predictions': predictions,
+                'differences_velocity': differences_velocity,
+                'differences_thickness': differences_thickness
+            }
+
+    def plot_predictions(self, loader, num_predictions=5, batch_index=0):
+        self.model.eval()
+        with torch.no_grad():
+            # Iterate to the specified batch index
+            for _ in range(batch_index + 1):
+                current, next_velocity_thickness = next(iter(loader))
+            
             current = current.to(self.device)
             next_velocity_thickness = next_velocity_thickness.to(self.device)
             
@@ -356,27 +465,30 @@ class TrainerPairs:
 
 
 class TrainerSeries:
-    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.device = device
-
-
         self.model_name = model_name.strip()
-        self.checkpoint_dir = checkpoint_dir.strip()
+        self.checkpoint_dir = os.path.join(checkpoint_dir.strip(), model_name) if model_name else checkpoint_dir.strip()
         self.training_losses = []
         self.validation_losses = []
+        self.patience = patience
+        self.best_val_loss = float('inf')
+        self.epochs_no_improve = 0
+        self.early_stop = False
 
+        # Scheduler
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
 
         # Ensure the checkpoint directory exists
-        self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-    def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+    def train(self, train_loader, val_loader, epochs):
         self.model.train()
+        checkpoint_interval = 5  # Save every 5 epochs
         for epoch in range(epochs):
-            self.model.train()
             total_loss = 0.0
             for sequence, next_state in train_loader:
                 sequence = sequence.to(self.device)
@@ -384,11 +496,6 @@ class TrainerSeries:
                 
                 self.optimizer.zero_grad()
                 predictions, _ = self.model(sequence)
-
-                # print("predictions shape: ", predictions.shape)  # Expected to match the shape of `next_state`
-                # print("next state shape: ", next_state.shape)
-
-
                 loss = self.criterion(predictions, next_state)
                 loss.backward()
                 self.optimizer.step()
@@ -402,14 +509,30 @@ class TrainerSeries:
             # Validation step
             val_loss = self.validate(val_loader)
             self.validation_losses.append(val_loss)
+            self.scheduler.step(val_loss)
+
+            # Optionally, print the current learning rate
+            current_lr = self.scheduler.get_last_lr()
+            print(f"Current Learning Rate: {current_lr}")
+
+            # Early stopping logic
+            if val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.epochs_no_improve = 0
+            else:
+                self.epochs_no_improve += 1
+                if self.epochs_no_improve >= self.patience:
+                    print("Early stopping")
+                    self.early_stop = True
+                    break
 
             # Save the model at the specified checkpoint interval
             if (epoch + 1) % checkpoint_interval == 0:
                 self.save_checkpoint(epoch + 1)
-                self.save_losses(epoch + 1)
 
-        # Save checkpoint after the final epoch
-        self.save_checkpoint(epochs)
+        # Save checkpoint after the final epoch if it does not align with the interval
+        if (epochs % checkpoint_interval != 0) and not self.early_stop:
+            self.save_checkpoint(epochs)
 
         # Save losses after the final epoch
         self.save_losses(epochs)
@@ -419,6 +542,72 @@ class TrainerSeries:
         
         self.sequence_length = train_loader.dataset.dataset.sequence_length
         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
+
+
+# class TrainerSeries:
+#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+#         self.model = model
+#         self.optimizer = optimizer
+#         self.criterion = criterion
+#         self.device = device
+
+
+#         self.model_name = model_name.strip()
+#         self.checkpoint_dir = checkpoint_dir.strip()
+#         self.training_losses = []
+#         self.validation_losses = []
+
+
+#         # Ensure the checkpoint directory exists
+#         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
+#         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+#     def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+#         self.model.train()
+#         for epoch in range(epochs):
+#             self.model.train()
+#             total_loss = 0.0
+#             for sequence, next_state in train_loader:
+#                 sequence = sequence.to(self.device)
+#                 next_state = next_state.to(self.device)
+                
+#                 self.optimizer.zero_grad()
+#                 predictions, _ = self.model(sequence)
+
+#                 # print("predictions shape: ", predictions.shape)  # Expected to match the shape of `next_state`
+#                 # print("next state shape: ", next_state.shape)
+
+
+#                 loss = self.criterion(predictions, next_state)
+#                 loss.backward()
+#                 self.optimizer.step()
+                
+#                 total_loss += loss.item()
+            
+#             avg_loss = total_loss / len(train_loader)
+#             self.training_losses.append(avg_loss)
+#             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
+
+#             # Validation step
+#             val_loss = self.validate(val_loader)
+#             self.validation_losses.append(val_loss)
+
+#             # Save the model at the specified checkpoint interval
+#             if (epoch + 1) % checkpoint_interval == 0:
+#                 self.save_checkpoint(epoch + 1)
+#                 self.save_losses(epoch + 1)
+
+#         # Save checkpoint after the final epoch
+#         self.save_checkpoint(epochs)
+
+#         # Save losses after the final epoch
+#         self.save_losses(epochs)
+
+#         # After training, plot the training and validation losses
+#         self.plot_losses()
+        
+#         self.sequence_length = train_loader.dataset.dataset.sequence_length
+#         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
     
     def validate(self, val_loader):
         self.model.eval()
@@ -681,4 +870,74 @@ class CustomDebrisLoss(nn.Module):
         # Weighted sum of the two losses
         total_loss = (self.debris_weight * debris_loss + 
                       (1 - self.debris_weight) * zero_loss)
+        return total_loss
+    
+class SparseLoss(nn.Module):
+    def __init__(self, zero_weight=0.1, debris_weight=0.9, epsilon=1e-8):
+        super(SparseLoss, self).__init__()
+        self.zero_weight = zero_weight
+        self.debris_weight = debris_weight
+        self.epsilon = epsilon
+
+    def forward(self, outputs, targets):
+        # Create a mask for debris areas (non-zero targets)
+        debris_mask = targets != 0
+        zero_mask = ~debris_mask
+
+        # Calculate the absolute error for debris and zero regions separately
+        debris_error = torch.abs(outputs[debris_mask] - targets[debris_mask])
+        zero_error = torch.abs(outputs[zero_mask] - targets[zero_mask])
+
+        # Calculate the mean absolute error for debris and zero regions
+        debris_mae = debris_error.mean()
+        zero_mae = zero_error.mean()
+
+        # Calculate the debris loss using mean squared error
+        debris_loss = torch.mean(debris_error ** 2)
+
+        # Calculate the zero loss using binary cross-entropy
+        zero_pred = torch.clamp(outputs[zero_mask], self.epsilon, 1 - self.epsilon)
+        zero_target = torch.zeros_like(zero_pred)
+        zero_loss = nn.functional.binary_cross_entropy(zero_pred, zero_target)
+
+        # Combine the losses using the specified weights
+        total_loss = self.debris_weight * debris_loss + self.zero_weight * zero_loss
+
+        return total_loss, debris_mae, zero_mae
+
+class AdaptiveSparseLoss(nn.Module):
+    def __init__(self, epsilon=1e-8):
+        super(AdaptiveSparseLoss, self).__init__()
+        self.epsilon = epsilon
+
+    def forward(self, outputs, targets):
+        # Create a mask for debris areas (non-zero targets)
+        debris_mask = targets != 0
+        zero_mask = ~debris_mask
+
+        # Calculate the absolute error for debris and zero regions separately
+        debris_error = torch.abs(outputs[debris_mask] - targets[debris_mask])
+        zero_error = torch.abs(outputs[zero_mask] - targets[zero_mask])
+
+        # # Calculate the mean absolute error for debris and zero regions
+        # debris_mae = debris_error.mean()
+        # print(f"debris mae: {debris_mae}")
+        # zero_mae = zero_error.mean()
+        # print(f"zero mae: {zero_mae}")
+
+        # Calculate the debris loss using mean squared error
+        debris_loss = torch.mean(debris_error ** 2)
+
+        # Calculate the zero loss using binary cross-entropy
+        zero_pred = torch.clamp(outputs[zero_mask], self.epsilon, 1 - self.epsilon)
+        zero_target = torch.zeros_like(zero_pred)
+        zero_loss = nn.functional.binary_cross_entropy(zero_pred, zero_target)
+
+        # Calculate the adaptive weights based on the sparsity of the data
+        debris_weight = 1 - (debris_mask.sum() / targets.numel())
+        zero_weight = 1 - debris_weight
+
+        # Combine the losses using the adaptive weights
+        total_loss = debris_weight * debris_loss + zero_weight * zero_loss
+
         return total_loss
