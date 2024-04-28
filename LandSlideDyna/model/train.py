@@ -92,20 +92,24 @@ class TrainerPairs:
     def train(self, train_loader, val_loader, epochs):
         self.model.train()
         checkpoint_interval = 5  # Save every 5 epochs
+
         for epoch in range(epochs):
             total_loss = 0.0
-            for current, next_state in train_loader:
+            self.optimizer.zero_grad()  # Initialize gradients to zero at the start of each batch
+
+            for batch_idx, (current, next_state) in enumerate(train_loader):
                 current = current.to(self.device)
                 next_state = next_state.to(self.device)
-                
-                self.optimizer.zero_grad()
+
                 predictions = self.model(current)
                 loss = self.criterion(predictions, next_state)
-                loss.backward()
-                self.optimizer.step()
-                
+                loss.backward()  # Compute gradients
+
+                self.optimizer.step()  # Update model parameters
+                self.optimizer.zero_grad()  # Clear gradients after updating
+
                 total_loss += loss.item()
-            
+
             avg_loss = total_loss / len(train_loader)
             self.training_losses.append(avg_loss)
             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
@@ -146,6 +150,72 @@ class TrainerPairs:
 
         # Retrieve scaling factors from the dataset for use in post-processing or inference
         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
+
+    # def train(self, train_loader, val_loader, epochs):
+    #     self.model.train()
+    #     checkpoint_interval = 5  # Save every 5 epochs
+    #     accumulation_steps = 10  # Number of steps to accumulate gradients
+
+    #     for epoch in range(epochs):
+    #         total_loss = 0.0
+    #         self.optimizer.zero_grad()  # Initialize gradients to zero
+
+    #         for batch_idx, (current, next_state) in enumerate(train_loader):
+    #             current = current.to(self.device)
+    #             next_state = next_state.to(self.device)
+
+    #             predictions = self.model(current)
+    #             loss = self.criterion(predictions, next_state)
+    #             loss = loss / accumulation_steps  # Normalize loss to account for accumulation
+    #             loss.backward()  # Accumulate gradients
+
+    #             # Only step the optimizer every accumulation_steps
+    #             if (batch_idx + 1) % accumulation_steps == 0 or (batch_idx + 1) == len(train_loader):
+    #                 self.optimizer.step()
+    #                 self.optimizer.zero_grad()  # Clear gradients after updating
+
+    #             total_loss += loss.item() * accumulation_steps  # Undo normalization for logging
+
+    #         avg_loss = total_loss / len(train_loader)
+    #         self.training_losses.append(avg_loss)
+    #         print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
+
+    #         # Validation step
+    #         val_loss = self.validate(val_loader)
+    #         self.validation_losses.append(val_loss)
+    #         self.scheduler.step(val_loss)
+
+    #         # Optionally, print the current learning rate
+    #         current_lr = self.scheduler.get_last_lr()
+    #         print(f"Current Learning Rate: {current_lr}")
+
+    #         # Early stopping logic
+    #         if val_loss < self.best_val_loss:
+    #             self.best_val_loss = val_loss
+    #             self.epochs_no_improve = 0
+    #         else:
+    #             self.epochs_no_improve += 1
+    #             if self.epochs_no_improve >= self.patience:
+    #                 print("Early stopping")
+    #                 self.early_stop = True
+    #                 break
+
+    #         # Save the model at the specified checkpoint interval
+    #         if (epoch + 1) % checkpoint_interval == 0:
+    #             self.save_checkpoint(epoch + 1)
+
+    #     # Save checkpoint after the final epoch if it does not align with the interval
+    #     if (epochs % checkpoint_interval != 0) and not self.early_stop:
+    #         self.save_checkpoint(epochs)
+
+    #     # Save losses after the final epoch
+    #     self.save_losses(epochs)
+
+    #     # After training, plot the training and validation losses
+    #     self.plot_losses()
+
+    #     # Retrieve scaling factors from the dataset for use in post-processing or inference
+    #     self.scaling_factors = train_loader.dataset.dataset.scaling_factors
 
     def validate(self, val_loader):
         self.model.eval()
@@ -237,32 +307,151 @@ class TrainerPairs:
         print(f'Test RMSE: {avg_rmse:.4f}')
         print(f'Test PSNR: {avg_psnr:.4f}')
 
+    def scale_data(self, data, min_val, max_val):
+        return (data - min_val) / (max_val - min_val)
+
+    def rescale_data(self, scaled_data, min_val, max_val):
+        return scaled_data * (max_val - min_val) + min_val
 
     def create_inference_input(self, root_dir, model_number, state_number, array_size):
-        # Construct the file paths based on the provided parameters
         model_dir = os.path.join(root_dir, str(model_number))
         elevation_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'elevation', f'{model_number}_elevation.npy')
         velocity_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity', f'{model_number}_velocity_{state_number}.npy')
         thickness_file = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness', f'{model_number}_thickness_{state_number}.npy')
 
-        # Load the data arrays
         elevation = np.load(elevation_file)
         velocity = np.load(velocity_file)
         thickness = np.load(thickness_file)
 
-        # Scale the data arrays
         min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors
-        elevation_scaled = (elevation - min_elevation) / (max_elevation - min_elevation)
-        velocity_scaled = (velocity - min_velocity) / (max_velocity - min_velocity)
-        thickness_scaled = (thickness - min_thickness) / (max_thickness - min_thickness)
+        elevation_scaled = self.scale_data(elevation, min_elevation, max_elevation)
+        velocity_scaled = self.scale_data(velocity, min_velocity, max_velocity)
+        thickness_scaled = self.scale_data(thickness, min_thickness, max_thickness)
 
-        # Stack the scaled data arrays to create the input tensor
         input_data = np.stack((elevation_scaled, thickness_scaled, velocity_scaled), axis=0)
-
-        # Convert to PyTorch tensor and move to the specified device
         input_tensor = torch.from_numpy(input_data).float().to(self.device)
 
         return input_tensor
+
+    
+
+    def infer_states(self, root_dir, model_id, array_size, start_state, num_timesteps):
+        self.model.eval()
+        device = self.device
+
+        model_dir = os.path.join(root_dir, str(model_id))
+        elevation_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'elevation')
+        elevation_file = os.path.join(elevation_dir, f'{model_id}_elevation.npy')
+        elevation = np.load(elevation_file) if os.path.exists(elevation_file) else None
+
+        inferred_states = {}
+        chain_inferred_states = {}
+        real_states = {}
+
+        min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors
+
+        with torch.no_grad():
+            previous_output = None
+            for i in range(num_timesteps):
+                state_number = start_state + i
+
+                if i == 0 or previous_output is None:
+                    # Scale elevation only once as it does not change
+                    elevation_scaled = self.scale_data(elevation, min_elevation, max_elevation)
+                    input_tensor = self.create_inference_input(root_dir, model_id, state_number, array_size)
+                else:
+                    # Use the previous output and attach scaled elevation data
+                    previous_output_with_elevation = np.concatenate(([elevation_scaled], previous_output), axis=0)
+                    input_tensor = torch.from_numpy(previous_output_with_elevation).float().to(device).unsqueeze(0)
+
+                output = self.model(input_tensor).squeeze(0).cpu().numpy()
+                output_rescaled = np.array([self.rescale_data(output[0, :, :], min_velocity, max_velocity), self.rescale_data(output[1, :, :], min_thickness, max_thickness)])
+
+                inferred_states[i + 1] = output_rescaled
+                chain_inferred_states[i + 1] = output  # Store the scaled output
+                previous_output = output  # Update previous output for the next iteration
+
+        return inferred_states, chain_inferred_states, real_states
+
+
+    # def infer_states(self, root_dir, model_id, array_size, start_state, num_timesteps):
+    #         self.model.eval()
+    #         device = self.device
+
+    #         model_dir = os.path.join(root_dir, str(model_id))
+    #         velocity_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity')
+    #         thickness_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness')
+            
+    #         inferred_states = {}
+    #         real_states = {}
+
+    #         min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors[2], self.scaling_factors[3], self.scaling_factors[4], self.scaling_factors[5]
+
+    #         with torch.no_grad():
+    #             for i in range(num_timesteps):
+    #                 state_number = start_state + i
+                    
+    #                 velocity_file = os.path.join(velocity_dir, f'{model_id}_velocity_{state_number}.npy')
+    #                 thickness_file = os.path.join(thickness_dir, f'{model_id}_thickness_{state_number}.npy')
+                    
+    #                 if os.path.exists(velocity_file) and os.path.exists(thickness_file):
+    #                     velocity = np.load(velocity_file)
+    #                     thickness = np.load(thickness_file)
+    #                     real_states[i + 1] = np.stack((thickness, velocity), axis=0)
+                    
+    #                 input_tensor = self.create_inference_input(root_dir, model_id, state_number, array_size)
+    #                 input_tensor = input_tensor.to(device).unsqueeze(0)
+                    
+    #                 output = self.model(input_tensor)
+    #                 output = output.squeeze(0).cpu().numpy()
+
+    #                 # Scale the inferred output data back to real-world values
+    #                 output[0, :, :] = output[0, :, :] * (max_velocity - min_velocity) + min_velocity  # Assuming first channel is velocity
+    #                 output[1, :, :] = output[1, :, :] * (max_thickness - min_thickness) + min_thickness  # Assuming second channel is thickness
+
+    #                 inferred_states[i + 1] = output
+
+    #         return inferred_states, real_states
+
+    # def infer_states(self, root_dir, model_id, array_size, start_state, num_timesteps):
+    #     # Make sure the model is in evaluation mode and no gradients are being computed
+    #     self.model.eval()
+    #     device = self.device
+
+    #     # Paths setup
+    #     model_dir = os.path.join(root_dir, str(model_id))
+    #     velocity_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity')
+    #     thickness_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness')
+        
+    #     # Create dictionaries for inferred and real states
+    #     inferred_states = {}
+    #     real_states = {}
+
+    #     with torch.no_grad():
+    #         for t in range(num_timesteps):
+    #             state_number = start_state + t
+                
+    #             # Prepare real state data
+    #             velocity_file = os.path.join(velocity_dir, f'{model_id}_velocity_{state_number}.npy')
+    #             thickness_file = os.path.join(thickness_dir, f'{model_id}_thickness_{state_number}.npy')
+                
+    #             if os.path.exists(velocity_file) and os.path.exists(thickness_file):
+    #                 velocity = np.load(velocity_file)
+    #                 thickness = np.load(thickness_file)
+    #                 real_states[state_number] = np.stack((thickness, velocity), axis=0)
+                
+    #             # Create the inference input for the current state
+    #             input_tensor = self.create_inference_input(root_dir, model_id, state_number, array_size)
+    #             input_tensor = input_tensor.to(device).unsqueeze(0)  # Add a batch dimension
+                
+    #             # Perform inference
+    #             output = self.model(input_tensor)
+                
+    #             # Store the inferred state
+    #             inferred_states[state_number] = output.squeeze(0).cpu().numpy()
+
+    #     return inferred_states, real_states
+
 
     def infer(self, initial_input, num_timesteps):
         self.model.eval()
@@ -277,28 +466,39 @@ class TrainerPairs:
         # Extract the elevation channel from the initial input
         elevation = initial_input[0].unsqueeze(0)  # This is possibly incorrect if initial_input already includes a batch dimension
 
-        print("Elevation shape initial:", elevation.shape)
 
         # Adjust elevation to have a channels dimension (assuming elevation data is a single channel)
         elevation = elevation.unsqueeze(1)  # Add a channel dimension making it [1, 1, height, width]
 
-        print("Elevation shape adjusted:", elevation.shape)
+
 
         # Initialize the input tensor for the first timestep
         input_tensor = initial_input.unsqueeze(0)  # Check if a batch dimension is really needed here
 
-        # Initialize a dictionary to store the inferred states
-        inferred_states = {}
+        # Initialize dictionaries to store the scaled and rescaled inferred states
+        scaled_inferred_states = {}
+        rescaled_inferred_states = {}
+
+        # Unpack scaling factors
+        min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors[2], self.scaling_factors[3], self.scaling_factors[4], self.scaling_factors[5]
 
         with torch.no_grad():
             for t in range(num_timesteps):
                 # Perform inference
-                print("Input tensor shape:", input_tensor.shape)
+                # print("Input tensor shape:", input_tensor.shape)
                 output = self.model(input_tensor)
-                print("Model output shape:", output.shape)
+                # print("Model output shape:", output.shape)
 
-                # Store the inferred state
-                inferred_states[t + 1] = output.squeeze(0).cpu().numpy()
+                # Store the scaled inferred state (0 to 1 range)
+                scaled_inferred_states[t + 1] = output.squeeze(0).cpu().numpy()
+
+                # Rescale the inferred output data back to real-world values
+                rescaled_output = torch.zeros_like(output)
+                rescaled_output[:, 0, :, :] = output[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity  # Rescale velocity
+                rescaled_output[:, 1, :, :] = output[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness  # Rescale thickness
+
+                # Store the rescaled inferred state (real-world values)
+                rescaled_inferred_states[t + 1] = rescaled_output.squeeze(0).cpu().numpy()
 
                 # Concatenate elevation with output
                 output_with_elevation = torch.cat((elevation, output), dim=1)
@@ -308,7 +508,9 @@ class TrainerPairs:
                 # Update the input tensor for the next iteration
                 input_tensor = output_with_elevation
 
-        return inferred_states
+        return rescaled_inferred_states
+
+
 
     def get_predictions(self, loader):
         self.model.eval()
@@ -338,7 +540,45 @@ class TrainerPairs:
                 'differences_thickness': differences_thickness
             }
 
-    def plot_predictions(self, loader, num_predictions=5, batch_index=0):
+    def infer_from_real_states(self, real_states, num_timesteps):
+        self.model.eval()
+        device = self.device
+
+        # Initialize a dictionary to store the predicted states
+        predicted_states = {}
+
+        # Unpack scaling factors
+        min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors[2], self.scaling_factors[3], self.scaling_factors[4], self.scaling_factors[5]
+
+        with torch.no_grad():
+            for t in range(num_timesteps):
+                # Get the real state for the current timestep
+                real_state = real_states[t + 1]
+                real_velocity = real_state[1]
+                real_thickness = real_state[0]
+
+                # Scale the real state data to the range [0, 1]
+                scaled_velocity = (real_velocity - min_velocity) / (max_velocity - min_velocity)
+                scaled_thickness = (real_thickness - min_thickness) / (max_thickness - min_thickness)
+
+                # Concatenate the scaled velocity, thickness, and elevation (assumed to be 0)
+                elevation = np.zeros_like(scaled_velocity)
+                input_tensor = torch.from_numpy(np.stack([elevation, scaled_velocity, scaled_thickness], axis=0)).float().to(device).unsqueeze(0)
+
+                # Perform inference
+                output = self.model(input_tensor)
+
+                # Rescale the predicted output data back to real-world values
+                rescaled_output = torch.zeros_like(output)
+                rescaled_output[:, 0, :, :] = output[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity  # Rescale velocity
+                rescaled_output[:, 1, :, :] = output[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness  # Rescale thickness
+
+                # Store the predicted state (real-world values)
+                predicted_states[t + 1] = rescaled_output.squeeze(0).cpu().numpy()
+
+        return predicted_states
+
+    def plot_predictions4(self, loader, num_predictions=5, batch_index=0, show_topography=True):
         self.model.eval()
         with torch.no_grad():
             # Iterate to the specified batch index
@@ -354,11 +594,24 @@ class TrainerPairs:
             current = current.cpu().numpy()
             next_velocity_thickness = next_velocity_thickness.cpu().numpy()
             predictions = predictions.cpu().numpy()
-            
+
+            # Get the scaling factors
+            scaling_factors = self.scaling_factors
+            min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+
+            # Scale the data back to real-world values
+            current[:, 0, :, :] = current[:, 0, :, :] * (max_elevation - min_elevation) + min_elevation
+            current[:, 1, :, :] = current[:, 1, :, :] * (max_velocity - min_velocity) + min_velocity
+            current[:, 2, :, :] = current[:, 2, :, :] * (max_thickness - min_thickness) + min_thickness
+            next_velocity_thickness[:, 0, :, :] = next_velocity_thickness[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            next_velocity_thickness[:, 1, :, :] = next_velocity_thickness[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+            predictions[:, 0, :, :] = predictions[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            predictions[:, 1, :, :] = predictions[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+
             # Calculate the differences for velocity and thickness
             differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
             differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
-            
+
             # Determine the common color scales for current and next velocities and thicknesses
             common_scale = {
                 'velocity': {
@@ -370,15 +623,499 @@ class TrainerPairs:
                     'max': max(np.max(current[:, 2, :, :]), np.max(next_velocity_thickness[:, 1, :, :]))
                 }
             }
-            
+
             batch_size = current.shape[0]
             # Select random indices from the batch
             indices_to_plot = np.random.choice(batch_size, num_predictions, replace=False)
+
+            for idx in indices_to_plot:
+                num_cols = 6 if show_topography else 5
+                width_ratios = [1] * (num_cols - 1) + [0.1]  # Adjust width ratios based on num_cols
+                fig, axes = plt.subplots(2, num_cols, figsize=(24, 8), gridspec_kw={'width_ratios': width_ratios})
+                
+                
+
+                if show_topography:
+                    axes[0, 0].imshow(current[idx][0], cmap='gray')
+                    axes[0, 0].set_title('Topography')
+                    axes[0, 0].axis('off')
+                    axes[1, 0].axis('off')
+                    col_offset = 1
+                else:
+                    col_offset = 0
+
+                axes[0, col_offset].imshow(current[idx][1], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset].set_title('Current Velocity (m/s)')
+                axes[0, col_offset].axis('off')
+
+                axes[0, col_offset+1].imshow(next_velocity_thickness[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+1].set_title('True Next Velocity (m/s)')
+                axes[0, col_offset+1].axis('off')
+
+                axes[0, col_offset+2].imshow(predictions[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+2].set_title('Predicted Next Velocity (m/s)')
+                axes[0, col_offset+2].axis('off')
+
+                axes[0, col_offset+3].imshow(differences_velocity[idx], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+3].set_title('Velocity Difference (m/s)')
+                axes[0, col_offset+3].axis('off')
+
+                axes[1, col_offset].imshow(current[idx][2], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset].set_title('Current Thickness (m)')
+                axes[1, col_offset].axis('off')
+
+                axes[1, col_offset+1].imshow(next_velocity_thickness[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+1].set_title('True Next Thickness (m)')
+                axes[1, col_offset+1].axis('off')
+
+                axes[1, col_offset+2].imshow(predictions[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+2].set_title('Predicted Next Thickness (m)')
+                axes[1, col_offset+2].axis('off')
+
+                axes[1, col_offset+3].imshow(differences_thickness[idx], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+3].set_title('Thickness Difference (m)')
+                axes[1, col_offset+3].axis('off')
+
+                # Add color bars for velocity and thickness
+                cbar_velocity = fig.colorbar(axes[0, col_offset].images[0], cax=axes[0, -1])
+                cbar_thickness = fig.colorbar(axes[1, col_offset].images[0], cax=axes[1, -1])
+
+                plt.tight_layout()
+                plt.show()
+
+ 
+
+    def plot_predictions5(self, loader, num_predictions=5, batch_index=0, show_topography=True, save_figures=False):
+        self.model.eval()
+        with torch.no_grad():
+            for _ in range(batch_index + 1):
+                current, next_velocity_thickness = next(iter(loader))
             
+            current = current.to(self.device)
+            next_velocity_thickness = next_velocity_thickness.to(self.device)
+            predictions = self.model(current)
+
+            current = current.cpu().numpy()
+            next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+            predictions = predictions.cpu().numpy()
+
+            # Scale data
+            scaling_factors = self.scaling_factors
+            min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+
+            layers = {'elevation': 0, 'velocity': 1, 'thickness': 2}
+            for key, index in layers.items():
+                min_val, max_val = scaling_factors[2 * index], scaling_factors[2 * index + 1]
+                current[:, index, :, :] = current[:, index, :, :] * (max_val - min_val) + min_val
+                next_velocity_thickness[:, index, :, :] = next_velocity_thickness[:, index, :, :] * (max_val - min_val) + min_val
+                predictions[:, index, :, :] = predictions[:, index, :, :] * (max_val - min_val) + min_val
+
+            # Calculate differences
+            differences = np.abs(next_velocity_thickness - predictions)
+
+            # Common color scales
+            common_scale = {key: {'min': min(current[:, i, :, :].min(), next_velocity_thickness[:, i, :, :].min()),
+                                'max': max(current[:, i, :, :].max(), next_velocity_thickness[:, i, :, :].max())}
+                            for key, i in layers.items() if key != 'elevation'}
+
+            indices_to_plot = np.random.choice(current.shape[0], num_predictions, replace=False)
+
+            for plot_index, idx in enumerate(indices_to_plot):
+                num_cols = 6 if show_topography else 5
+                fig, axes = plt.subplots(2, num_cols, figsize=(24, 8), gridspec_kw={'width_ratios': [1] * (num_cols - 1) + [0.1]})
+
+                col_offset = 1 if show_topography else 0
+
+                if show_topography:
+                    axes[0, 0].imshow(current[idx][0], cmap='gray')
+                    axes[0, 0].set_title('Topography')
+                    axes[0, 0].axis('off')
+                    axes[1, 0].axis('off')
+
+                titles = ['Current', 'True Next', 'Predicted Next', 'Difference']
+                for i, title in enumerate(titles):
+                    for j, key in enumerate(['velocity', 'thickness']):
+                        img = axes[j, col_offset+i].imshow(differences[idx][j] if title == 'Difference' else eval(title.lower().replace(' ', '_') + '_velocity_thickness[idx][j]'),
+                                                        cmap='jet', vmin=common_scale[key]['min'], vmax=common_scale[key]['max'])
+                        axes[j, col_offset+i].set_title(f'{title} {key.capitalize()} ({"m/s" if key == "velocity" else "m"})')
+                        axes[j, col_offset+i].axis('off')
+                        if i == 3:  # add colorbar on the last image of each row
+                            fig.colorbar(img, ax=axes[j, col_offset+i], fraction=0.046, pad=0.04)
+
+                if save_figures:
+                    plt.tight_layout()
+                    plt.savefig(f'plot_{plot_index}.png', dpi=600)
+                    plt.close(fig)  # Close the figure to free memory
+                else:
+                    plt.tight_layout()
+                    plt.show()
+
+    def plot_predictions3(self, loader, num_predictions=5, batch_index=0, show_topography=True):
+        self.model.eval()
+        with torch.no_grad():
+            # Iterate to the specified batch index
+            for _ in range(batch_index + 1):
+                current, next_velocity_thickness = next(iter(loader))
+            
+            current = current.to(self.device)
+            next_velocity_thickness = next_velocity_thickness.to(self.device)
+            
+            predictions = self.model(current)
+
+            # Move the tensors back to the CPU and convert to numpy for plotting
+            current = current.cpu().numpy()
+            next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+            predictions = predictions.cpu().numpy()
+
+            # Get the scaling factors
+            scaling_factors = self.scaling_factors
+            min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+
+            # Scale the data back to real-world values
+            current[:, 0, :, :] = current[:, 0, :, :] * (max_elevation - min_elevation) + min_elevation
+            current[:, 1, :, :] = current[:, 1, :, :] * (max_velocity - min_velocity) + min_velocity
+            current[:, 2, :, :] = current[:, 2, :, :] * (max_thickness - min_thickness) + min_thickness
+            next_velocity_thickness[:, 0, :, :] = next_velocity_thickness[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            next_velocity_thickness[:, 1, :, :] = next_velocity_thickness[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+            predictions[:, 0, :, :] = predictions[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            predictions[:, 1, :, :] = predictions[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+
+            # Calculate the differences for velocity and thickness
+            differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
+            differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
+
+            # Determine the common color scales for current and next velocities and thicknesses
+            common_scale = {
+                'velocity': {
+                    'min': min(np.min(current[:, 1, :, :]), np.min(next_velocity_thickness[:, 0, :, :])),
+                    'max': max(np.max(current[:, 1, :, :]), np.max(next_velocity_thickness[:, 0, :, :]))
+                },
+                'thickness': {
+                    'min': min(np.min(current[:, 2, :, :]), np.min(next_velocity_thickness[:, 1, :, :])),
+                    'max': max(np.max(current[:, 2, :, :]), np.max(next_velocity_thickness[:, 1, :, :]))
+                }
+            }
+
+            batch_size = current.shape[0]
+            # Select random indices from the batch
+            indices_to_plot = np.random.choice(batch_size, num_predictions, replace=False)
+
+            for idx in indices_to_plot:
+                num_cols = 5 if show_topography else 4
+                fig, axes = plt.subplots(2, num_cols, figsize=(20, 8))
+
+                if show_topography:
+                    axes[0, 0].imshow(current[idx][0], cmap='gray')
+                    axes[0, 0].set_title('Topography')
+                    axes[0, 0].axis('off')
+                    axes[1, 0].axis('off')
+                    col_offset = 1
+                else:
+                    col_offset = 0
+
+                axes[0, col_offset].imshow(current[idx][1], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset].set_title('Current Velocity')
+                axes[0, col_offset].axis('off')
+
+                axes[0, col_offset+1].imshow(next_velocity_thickness[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+1].set_title('True Next Velocity')
+                axes[0, col_offset+1].axis('off')
+
+                axes[0, col_offset+2].imshow(predictions[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+2].set_title('Predicted Next Velocity')
+                axes[0, col_offset+2].axis('off')
+
+                axes[0, col_offset+3].imshow(differences_velocity[idx], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+3].set_title('Velocity Difference')
+                axes[0, col_offset+3].axis('off')
+
+                axes[1, col_offset].imshow(current[idx][2], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset].set_title('Current Thickness')
+                axes[1, col_offset].axis('off')
+
+                axes[1, col_offset+1].imshow(next_velocity_thickness[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+1].set_title('True Next Thickness')
+                axes[1, col_offset+1].axis('off')
+
+                axes[1, col_offset+2].imshow(predictions[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+2].set_title('Predicted Next Thickness')
+                axes[1, col_offset+2].axis('off')
+
+                axes[1, col_offset+3].imshow(differences_thickness[idx], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+3].set_title('Thickness Difference')
+                axes[1, col_offset+3].axis('off')
+
+                # Add a single color scale on the far right
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
+                fig.colorbar(axes[0, col_offset].images[0], cax=cbar_ax)
+
+                plt.tight_layout()
+                plt.show()
+
+    def plot_predictions2(self, loader, num_predictions=5, batch_index=0):
+        self.model.eval()
+        with torch.no_grad():
+            # Iterate to the specified batch index
+            for _ in range(batch_index + 1):
+                current, next_velocity_thickness = next(iter(loader))
+            
+            current = current.to(self.device)
+            next_velocity_thickness = next_velocity_thickness.to(self.device)
+            
+            predictions = self.model(current)
+
+            # Move the tensors back to the CPU and convert to numpy for plotting
+            current = current.cpu().numpy()
+            next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+            predictions = predictions.cpu().numpy()
+
+            # Get the scaling factors
+            scaling_factors = self.scaling_factors
+            min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+
+            # Scale the data back to real-world values
+            current[:, 0, :, :] = current[:, 0, :, :] * (max_elevation - min_elevation) + min_elevation
+            current[:, 1, :, :] = current[:, 1, :, :] * (max_velocity - min_velocity) + min_velocity
+            current[:, 2, :, :] = current[:, 2, :, :] * (max_thickness - min_thickness) + min_thickness
+            next_velocity_thickness[:, 0, :, :] = next_velocity_thickness[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            next_velocity_thickness[:, 1, :, :] = next_velocity_thickness[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+            predictions[:, 0, :, :] = predictions[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            predictions[:, 1, :, :] = predictions[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+
+            # Calculate the differences for velocity and thickness
+            differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
+            differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
+
+            # Determine the common color scales for current and next velocities and thicknesses
+            common_scale = {
+                'velocity': {
+                    'min': min(np.min(current[:, 1, :, :]), np.min(next_velocity_thickness[:, 0, :, :])),
+                    'max': max(np.max(current[:, 1, :, :]), np.max(next_velocity_thickness[:, 0, :, :]))
+                },
+                'thickness': {
+                    'min': min(np.min(current[:, 2, :, :]), np.min(next_velocity_thickness[:, 1, :, :])),
+                    'max': max(np.max(current[:, 2, :, :]), np.max(next_velocity_thickness[:, 1, :, :]))
+                }
+            }
+
+            batch_size = current.shape[0]
+            # Select random indices from the batch
+            indices_to_plot = np.random.choice(batch_size, num_predictions, replace=False)
+
             for idx in indices_to_plot:
                 plt.figure(figsize=(20, 8))
 
+                # Row 1: Topography, Current Velocity, True Next Velocity, Predicted Next Velocity, Velocity Difference
+                plt.subplot(2, 5, 1)
+                plt.imshow(current[idx][0], cmap='gray')
+                plt.title('Topography')
+                plt.axis('off')
 
+                plt.subplot(2, 5, 2)
+                plt.imshow(current[idx][1], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                plt.title('Current Velocity')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 3)
+                plt.imshow(next_velocity_thickness[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                plt.title('True Next Velocity')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 4)
+                plt.imshow(predictions[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                plt.title('Predicted Next Velocity')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 5)
+                plt.imshow(differences_velocity[idx], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                plt.title('Velocity Difference')
+                plt.axis('off')
+                plt.colorbar()
+
+                # Row 2: Topography, Current Thickness, True Next Thickness, Predicted Next Thickness, Thickness Difference
+                plt.subplot(2, 5, 6)
+                plt.imshow(current[idx][0], cmap='gray')  # Topography is the same as in the first row
+                plt.axis('off')
+
+                plt.subplot(2, 5, 7)
+                plt.imshow(current[idx][2], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                plt.title('Current Thickness')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 8)
+                plt.imshow(next_velocity_thickness[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                plt.title('True Next Thickness')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 9)
+                plt.imshow(predictions[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                plt.title('Predicted Next Thickness')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.subplot(2, 5, 10)
+                plt.imshow(differences_thickness[idx], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                plt.title('Thickness Difference')
+                plt.axis('off')
+                plt.colorbar()
+
+                plt.tight_layout()
+                plt.show()
+    
+    def plot_predictions6(self, loader, num_predictions=5, batch_index=0, show_topography=True, model_id=None):
+        self.model.eval()
+        with torch.no_grad():
+            # Iterate to the specified batch index
+            for _ in range(batch_index + 1):
+                current, next_velocity_thickness = next(iter(loader))
+            
+            current = current.to(self.device)
+            next_velocity_thickness = next_velocity_thickness.to(self.device)
+            
+            predictions = self.model(current)
+
+            # Move the tensors back to the CPU and convert to numpy for plotting
+            current = current.cpu().numpy()
+            next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+            predictions = predictions.cpu().numpy()
+
+            # Get the scaling factors
+            scaling_factors = self.scaling_factors
+            min_elevation, max_elevation, min_velocity, max_velocity, min_thickness, max_thickness = scaling_factors
+
+            # Scale the data back to real-world values
+            current[:, 0, :, :] = current[:, 0, :, :] * (max_elevation - min_elevation) + min_elevation
+            current[:, 1, :, :] = current[:, 1, :, :] * (max_velocity - min_velocity) + min_velocity
+            current[:, 2, :, :] = current[:, 2, :, :] * (max_thickness - min_thickness) + min_thickness
+            next_velocity_thickness[:, 0, :, :] = next_velocity_thickness[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            next_velocity_thickness[:, 1, :, :] = next_velocity_thickness[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+            predictions[:, 0, :, :] = predictions[:, 0, :, :] * (max_velocity - min_velocity) + min_velocity
+            predictions[:, 1, :, :] = predictions[:, 1, :, :] * (max_thickness - min_thickness) + min_thickness
+
+            # Calculate the differences for velocity and thickness
+            differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
+            differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
+
+            # Determine the common color scales for current and next velocities and thicknesses
+            common_scale = {
+                'velocity': {
+                    'min': min(np.min(current[:, 1, :, :]), np.min(next_velocity_thickness[:, 0, :, :])),
+                    'max': max(np.max(current[:, 1, :, :]), np.max(next_velocity_thickness[:, 0, :, :]))
+                },
+                'thickness': {
+                    'min': min(np.min(current[:, 2, :, :]), np.min(next_velocity_thickness[:, 1, :, :])),
+                    'max': max(np.max(current[:, 2, :, :]), np.max(next_velocity_thickness[:, 1, :, :]))
+                }
+            }
+
+            batch_size = current.shape[0]
+            # Select random indices from the batch
+            indices_to_plot = np.random.choice(batch_size, num_predictions, replace=False)
+
+            for idx in indices_to_plot:
+                num_cols = 6 if show_topography else 5
+                width_ratios = [1] * (num_cols - 1) + [0.1]  # Adjust width ratios based on num_cols
+                fig, axes = plt.subplots(2, num_cols, figsize=(24, 8), gridspec_kw={'width_ratios': width_ratios})
+                
+                # Add the model ID as a subtitle
+                if model_id is not None:
+                    fig.suptitle(f"Model ID: {model_id}", fontsize=16)
+
+                if show_topography:
+                    axes[0, 0].imshow(current[idx][0], cmap='gray')
+                    axes[0, 0].set_title('Topography')
+                    axes[0, 0].axis('off')
+                    axes[1, 0].axis('off')
+                    col_offset = 1
+                else:
+                    col_offset = 0
+
+                axes[0, col_offset].imshow(current[idx][1], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset].set_title('Current Velocity (m/s)')
+                axes[0, col_offset].axis('off')
+
+                axes[0, col_offset+1].imshow(next_velocity_thickness[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+1].set_title('True Next Velocity (m/s)')
+                axes[0, col_offset+1].axis('off')
+
+                axes[0, col_offset+2].imshow(predictions[idx][0], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+2].set_title('Predicted Next Velocity (m/s)')
+                axes[0, col_offset+2].axis('off')
+
+                axes[0, col_offset+3].imshow(differences_velocity[idx], cmap='jet', vmin=common_scale['velocity']['min'], vmax=common_scale['velocity']['max'])
+                axes[0, col_offset+3].set_title('Velocity Difference (m/s)')
+                axes[0, col_offset+3].axis('off')
+
+                axes[1, col_offset].imshow(current[idx][2], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset].set_title('Current Thickness (m)')
+                axes[1, col_offset].axis('off')
+
+                axes[1, col_offset+1].imshow(next_velocity_thickness[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+1].set_title('True Next Thickness (m)')
+                axes[1, col_offset+1].axis('off')
+
+                axes[1, col_offset+2].imshow(predictions[idx][1], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+2].set_title('Predicted Next Thickness (m)')
+                axes[1, col_offset+2].axis('off')
+
+                axes[1, col_offset+3].imshow(differences_thickness[idx], cmap='jet', vmin=common_scale['thickness']['min'], vmax=common_scale['thickness']['max'])
+                axes[1, col_offset+3].set_title('Thickness Difference (m)')
+                axes[1, col_offset+3].axis('off')
+
+                # Add color bars for velocity and thickness
+                cbar_velocity = fig.colorbar(axes[0, col_offset].images[0], cax=axes[0, -1])
+                cbar_thickness = fig.colorbar(axes[1, col_offset].images[0], cax=axes[1, -1])
+
+                plt.tight_layout()
+                plt.show()
+
+
+    def plot_predictions(self, loader, num_predictions=5, batch_index=0):
+
+            self.model.eval()
+            with torch.no_grad():
+            # Iterate to the specified batch index
+                for _ in range(batch_index + 1):
+                    current, next_velocity_thickness = next(iter(loader))
+                
+                current = current.to(self.device)
+                next_velocity_thickness = next_velocity_thickness.to(self.device)
+                
+                predictions = self.model(current)
+
+                # Move the tensors back to the CPU and convert to numpy for plotting
+                current = current.cpu().numpy()
+                next_velocity_thickness = next_velocity_thickness.cpu().numpy()
+                predictions = predictions.cpu().numpy()
+                
+                # Calculate the differences for velocity and thickness
+                differences_velocity = np.abs(next_velocity_thickness[:, 0, :, :] - predictions[:, 0, :, :])
+                differences_thickness = np.abs(next_velocity_thickness[:, 1, :, :] - predictions[:, 1, :, :])
+                
+                # Determine the common color scales for current and next velocities and thicknesses
+                common_scale = {
+                    'velocity': {
+                        'min': min(np.min(current[:, 1, :, :]), np.min(next_velocity_thickness[:, 0, :, :])),
+                        'max': max(np.max(current[:, 1, :, :]), np.max(next_velocity_thickness[:, 0, :, :]))
+                    },
+                    'thickness': {
+                        'min': min(np.min(current[:, 2, :, :]), np.min(next_velocity_thickness[:, 1, :, :])),
+                        'max': max(np.max(current[:, 2, :, :]), np.max(next_velocity_thickness[:, 1, :, :]))
+                    }
+                }
+                
+                batch_size = current.shape[0]
+                # Select random indices from the batch
+                indices_to_plot = np.random.choice(batch_size, num_predictions, replace=False)
+            
+            for idx in indices_to_plot:
+                plt.figure(figsize=(20, 8))
 
                 # Row 1: Topography, Current Velocity, True Next Velocity, Predicted Next Velocity, Velocity Difference
                 plt.subplot(2, 5, 1)
@@ -464,108 +1201,31 @@ class TrainerPairs:
 
 
 
-class TrainerSeries:
-    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
-        self.model = model
-        self.optimizer = optimizer
-        self.criterion = criterion
-        self.device = device
-        self.model_name = model_name.strip()
-        self.checkpoint_dir = os.path.join(checkpoint_dir.strip(), model_name) if model_name else checkpoint_dir.strip()
-        self.training_losses = []
-        self.validation_losses = []
-        self.patience = patience
-        self.best_val_loss = float('inf')
-        self.epochs_no_improve = 0
-        self.early_stop = False
-
-        # Scheduler
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
-
-        # Ensure the checkpoint directory exists
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
-
-    def train(self, train_loader, val_loader, epochs):
-        self.model.train()
-        checkpoint_interval = 5  # Save every 5 epochs
-        for epoch in range(epochs):
-            total_loss = 0.0
-            for sequence, next_state in train_loader:
-                sequence = sequence.to(self.device)
-                next_state = next_state.to(self.device)
-                
-                self.optimizer.zero_grad()
-                predictions, _ = self.model(sequence)
-                loss = self.criterion(predictions, next_state)
-                loss.backward()
-                self.optimizer.step()
-                
-                total_loss += loss.item()
-            
-            avg_loss = total_loss / len(train_loader)
-            self.training_losses.append(avg_loss)
-            print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
-
-            # Validation step
-            val_loss = self.validate(val_loader)
-            self.validation_losses.append(val_loss)
-            self.scheduler.step(val_loss)
-
-            # Optionally, print the current learning rate
-            current_lr = self.scheduler.get_last_lr()
-            print(f"Current Learning Rate: {current_lr}")
-
-            # Early stopping logic
-            if val_loss < self.best_val_loss:
-                self.best_val_loss = val_loss
-                self.epochs_no_improve = 0
-            else:
-                self.epochs_no_improve += 1
-                if self.epochs_no_improve >= self.patience:
-                    print("Early stopping")
-                    self.early_stop = True
-                    break
-
-            # Save the model at the specified checkpoint interval
-            if (epoch + 1) % checkpoint_interval == 0:
-                self.save_checkpoint(epoch + 1)
-
-        # Save checkpoint after the final epoch if it does not align with the interval
-        if (epochs % checkpoint_interval != 0) and not self.early_stop:
-            self.save_checkpoint(epochs)
-
-        # Save losses after the final epoch
-        self.save_losses(epochs)
-
-        # After training, plot the training and validation losses
-        self.plot_losses()
-        
-        self.sequence_length = train_loader.dataset.dataset.sequence_length
-        self.scaling_factors = train_loader.dataset.dataset.scaling_factors
-
-
 # class TrainerSeries:
-#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
 #         self.model = model
 #         self.optimizer = optimizer
 #         self.criterion = criterion
 #         self.device = device
-
-
 #         self.model_name = model_name.strip()
-#         self.checkpoint_dir = checkpoint_dir.strip()
+#         self.checkpoint_dir = os.path.join(checkpoint_dir.strip(), model_name) if model_name else checkpoint_dir.strip()
 #         self.training_losses = []
 #         self.validation_losses = []
+#         self.patience = patience
+#         self.best_val_loss = float('inf')
+#         self.epochs_no_improve = 0
+#         self.early_stop = False
 
+#         # Scheduler
+#         self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
 
 #         # Ensure the checkpoint directory exists
-#         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
 #         os.makedirs(self.checkpoint_dir, exist_ok=True)
 
-#     def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+#     def train(self, train_loader, val_loader, epochs):
 #         self.model.train()
+#         checkpoint_interval = 5  # Save every 5 epochs
 #         for epoch in range(epochs):
-#             self.model.train()
 #             total_loss = 0.0
 #             for sequence, next_state in train_loader:
 #                 sequence = sequence.to(self.device)
@@ -573,11 +1233,6 @@ class TrainerSeries:
                 
 #                 self.optimizer.zero_grad()
 #                 predictions, _ = self.model(sequence)
-
-#                 # print("predictions shape: ", predictions.shape)  # Expected to match the shape of `next_state`
-#                 # print("next state shape: ", next_state.shape)
-
-
 #                 loss = self.criterion(predictions, next_state)
 #                 loss.backward()
 #                 self.optimizer.step()
@@ -591,14 +1246,30 @@ class TrainerSeries:
 #             # Validation step
 #             val_loss = self.validate(val_loader)
 #             self.validation_losses.append(val_loss)
+#             self.scheduler.step(val_loss)
+
+#             # Optionally, print the current learning rate
+#             current_lr = self.scheduler.get_last_lr()
+#             print(f"Current Learning Rate: {current_lr}")
+
+#             # Early stopping logic
+#             if val_loss < self.best_val_loss:
+#                 self.best_val_loss = val_loss
+#                 self.epochs_no_improve = 0
+#             else:
+#                 self.epochs_no_improve += 1
+#                 if self.epochs_no_improve >= self.patience:
+#                     print("Early stopping")
+#                     self.early_stop = True
+#                     break
 
 #             # Save the model at the specified checkpoint interval
 #             if (epoch + 1) % checkpoint_interval == 0:
 #                 self.save_checkpoint(epoch + 1)
-#                 self.save_losses(epoch + 1)
 
-#         # Save checkpoint after the final epoch
-#         self.save_checkpoint(epochs)
+#         # Save checkpoint after the final epoch if it does not align with the interval
+#         if (epochs % checkpoint_interval != 0) and not self.early_stop:
+#             self.save_checkpoint(epochs)
 
 #         # Save losses after the final epoch
 #         self.save_losses(epochs)
@@ -608,6 +1279,72 @@ class TrainerSeries:
         
 #         self.sequence_length = train_loader.dataset.dataset.sequence_length
 #         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
+
+
+class TrainerSeries:
+    def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
+        self.model = model
+        self.optimizer = optimizer
+        self.criterion = criterion
+        self.device = device
+
+
+        self.model_name = model_name.strip()
+        self.checkpoint_dir = checkpoint_dir.strip()
+        self.training_losses = []
+        self.validation_losses = []
+
+
+        # Ensure the checkpoint directory exists
+        self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
+        self.model.train()
+        for epoch in range(epochs):
+            self.model.train()
+            total_loss = 0.0
+            for sequence, next_state in train_loader:
+                sequence = sequence.to(self.device)
+                next_state = next_state.to(self.device)
+                
+                self.optimizer.zero_grad()
+                predictions, _ = self.model(sequence)
+
+                # print("predictions shape: ", predictions.shape)  # Expected to match the shape of `next_state`
+                # print("next state shape: ", next_state.shape)
+
+
+                loss = self.criterion(predictions, next_state)
+                loss.backward()
+                self.optimizer.step()
+                
+                total_loss += loss.item()
+            
+            avg_loss = total_loss / len(train_loader)
+            self.training_losses.append(avg_loss)
+            print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
+
+            # Validation step
+            val_loss = self.validate(val_loader)
+            self.validation_losses.append(val_loss)
+
+            # Save the model at the specified checkpoint interval
+            if (epoch + 1) % checkpoint_interval == 0:
+                self.save_checkpoint(epoch + 1)
+                self.save_losses(epoch + 1)
+
+        # Save checkpoint after the final epoch
+        self.save_checkpoint(epochs)
+
+        # Save losses after the final epoch
+        self.save_losses(epochs)
+
+        # After training, plot the training and validation losses
+        self.plot_losses()
+        
+        self.sequence_length = train_loader.dataset.dataset.sequence_length
+        self.scaling_factors = train_loader.dataset.dataset.scaling_factors
     
     def validate(self, val_loader):
         self.model.eval()
