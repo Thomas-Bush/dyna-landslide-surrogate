@@ -20,65 +20,6 @@ class ArrayVisualizer:
         """
         self.colormap = colormap
         self.fixed_scale = fixed_scale
-
-    # def plot_array(self, array, x_coords=None, y_coords=None, show_coords=True, blank_zeros=True):
-    #     """Plots a 2D NumPy array as a raster image.
-
-    #     Args:
-    #         array (np.ndarray): 2D array to visualize.
-    #         x_coords (np.ndarray, optional): X coordinates for custom axis scaling.
-    #         y_coords (np.ndarray, optional): Y coordinates for custom axis scaling.
-    #         show_coords (bool): Whether to show coordinates on the axis.
-    #         blank_zeros (bool): Whether to mask zero values in the array.
-    #     """
-    #     plot_array = np.ma.masked_where(array == 0, array) if blank_zeros else array
-    #     norm = Normalize(vmin=self.fixed_scale[0], vmax=self.fixed_scale[1]) if self.fixed_scale else Normalize(vmin=plot_array.min(), vmax=plot_array.max())
-
-    #     fig, ax = plt.subplots()
-    #     extent = [x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()] if x_coords is not None and y_coords is not None else None
-    #     cax = ax.imshow(plot_array, cmap=self.colormap, norm=norm, extent=extent)
-
-    #     if show_coords and x_coords is not None and y_coords is not None:
-    #         ax.set_xlabel('X Coordinate')
-    #         ax.set_ylabel('Y Coordinate')
-    #         plt.xticks(rotation=45)
-    #     else:
-    #         ax.set_xticks([])
-    #         ax.set_yticks([])
-
-    #     fig.colorbar(cax, ax=ax)
-    #     plt.show()
-        
-
-
-
-    # def plot_array(self, array, x_coords=None, y_coords=None, show_coords=True, blank_zeros=True):
-    #     plot_array = np.ma.masked_where(array == 0, array) if blank_zeros else array
-    #     norm = Normalize(vmin=self.fixed_scale[0], vmax=self.fixed_scale[1]) if self.fixed_scale else Normalize(vmin=plot_array.min(), vmax=plot_array.max())
-
-    #     fig, ax = plt.subplots()
-    #     extent = [x_coords.min(), x_coords.max(), y_coords.min(), y_coords.max()] if x_coords is not None and y_coords is not None else None
-    #     cax = ax.imshow(plot_array, cmap=self.colormap, norm=norm, extent=extent)
-
-    #     if show_coords and x_coords is not None and y_coords is not None:
-    #         ax.set_xlabel('X Coordinate')
-    #         ax.set_ylabel('Y Coordinate')
-    #         plt.xticks(rotation=45)
-    #     else:
-    #         ax.set_xticks([])
-    #         ax.set_yticks([])
-
-    #     # Annotate the plot with the maximum pixel value
-    #     max_val = np.max(plot_array)
-    #     max_loc = np.unravel_index(np.argmax(plot_array), plot_array.shape)
-    #     if extent is not None:
-    #         max_x, max_y = x_coords[max_loc[1]], y_coords[max_loc[0]]
-    #     else:
-    #         max_x, max_y = max_loc[1], max_loc[0]
-    #     ax.annotate(f'Max: {max_val}', xy=(max_x, max_y), color='black', weight='bold')
-
-    #     fig.colorbar(cax, ax=ax)
-    #     plt.show()
         
 
     def plot_array(self, array, x_coords=None, y_coords=None, show_coords=True, blank_zeros=True):

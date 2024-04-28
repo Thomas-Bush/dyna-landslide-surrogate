@@ -11,62 +11,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
 
-# class TrainerPairs:
-#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
-#         self.model = model
-#         self.optimizer = optimizer
-#         self.criterion = criterion
-#         self.device = device
-#         self.model_name = model_name.strip()
-#         self.checkpoint_dir = checkpoint_dir.strip()
-#         self.training_losses = []
-#         self.validation_losses = []
-#         self.custom_loss = CustomDebrisLoss()
-
-#         # Ensure the checkpoint directory exists
-#         self.checkpoint_dir = os.path.join(self.checkpoint_dir, self.model_name) if self.model_name else self.checkpoint_dir
-#         os.makedirs(self.checkpoint_dir, exist_ok=True)
-
-#     def train(self, train_loader, val_loader, epochs, checkpoint_interval=5):
-#         self.model.train()
-#         for epoch in range(epochs):
-#             total_loss = 0.0
-#             for current, next_state in train_loader:
-#                 current = current.to(self.device)
-#                 next_state = next_state.to(self.device)
-                
-#                 self.optimizer.zero_grad()
-#                 predictions = self.model(current)
-#                 loss = self.criterion(predictions, next_state)
-#                 loss.backward()
-#                 self.optimizer.step()
-                
-#                 total_loss += loss.item()
-            
-#             avg_loss = total_loss / len(train_loader)
-#             self.training_losses.append(avg_loss)
-#             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
-
-#             # Validation step
-#             val_loss = self.validate(val_loader)
-#             self.validation_losses.append(val_loss)
-
-#             # Save the model at the specified checkpoint interval
-#             if (epoch + 1) % checkpoint_interval == 0:
-#                 self.save_checkpoint(epoch + 1)
-#                 self.save_losses(epoch + 1)
-
-#         # Save checkpoint after the final epoch
-#         self.save_checkpoint(epochs)
-
-#         # Save losses after the final epoch
-#         self.save_losses(epochs)
-
-#         # After training, plot the training and validation losses
-#         self.plot_losses()
-
-        # self.scaling_factors = train_loader.dataset.dataset.scaling_factors
-
 class TrainerPairs:
     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
         self.model = model
@@ -150,72 +94,6 @@ class TrainerPairs:
 
         # Retrieve scaling factors from the dataset for use in post-processing or inference
         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
-
-    # def train(self, train_loader, val_loader, epochs):
-    #     self.model.train()
-    #     checkpoint_interval = 5  # Save every 5 epochs
-    #     accumulation_steps = 10  # Number of steps to accumulate gradients
-
-    #     for epoch in range(epochs):
-    #         total_loss = 0.0
-    #         self.optimizer.zero_grad()  # Initialize gradients to zero
-
-    #         for batch_idx, (current, next_state) in enumerate(train_loader):
-    #             current = current.to(self.device)
-    #             next_state = next_state.to(self.device)
-
-    #             predictions = self.model(current)
-    #             loss = self.criterion(predictions, next_state)
-    #             loss = loss / accumulation_steps  # Normalize loss to account for accumulation
-    #             loss.backward()  # Accumulate gradients
-
-    #             # Only step the optimizer every accumulation_steps
-    #             if (batch_idx + 1) % accumulation_steps == 0 or (batch_idx + 1) == len(train_loader):
-    #                 self.optimizer.step()
-    #                 self.optimizer.zero_grad()  # Clear gradients after updating
-
-    #             total_loss += loss.item() * accumulation_steps  # Undo normalization for logging
-
-    #         avg_loss = total_loss / len(train_loader)
-    #         self.training_losses.append(avg_loss)
-    #         print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
-
-    #         # Validation step
-    #         val_loss = self.validate(val_loader)
-    #         self.validation_losses.append(val_loss)
-    #         self.scheduler.step(val_loss)
-
-    #         # Optionally, print the current learning rate
-    #         current_lr = self.scheduler.get_last_lr()
-    #         print(f"Current Learning Rate: {current_lr}")
-
-    #         # Early stopping logic
-    #         if val_loss < self.best_val_loss:
-    #             self.best_val_loss = val_loss
-    #             self.epochs_no_improve = 0
-    #         else:
-    #             self.epochs_no_improve += 1
-    #             if self.epochs_no_improve >= self.patience:
-    #                 print("Early stopping")
-    #                 self.early_stop = True
-    #                 break
-
-    #         # Save the model at the specified checkpoint interval
-    #         if (epoch + 1) % checkpoint_interval == 0:
-    #             self.save_checkpoint(epoch + 1)
-
-    #     # Save checkpoint after the final epoch if it does not align with the interval
-    #     if (epochs % checkpoint_interval != 0) and not self.early_stop:
-    #         self.save_checkpoint(epochs)
-
-    #     # Save losses after the final epoch
-    #     self.save_losses(epochs)
-
-    #     # After training, plot the training and validation losses
-    #     self.plot_losses()
-
-    #     # Retrieve scaling factors from the dataset for use in post-processing or inference
-    #     self.scaling_factors = train_loader.dataset.dataset.scaling_factors
 
     def validate(self, val_loader):
         self.model.eval()
@@ -374,85 +252,6 @@ class TrainerPairs:
         return inferred_states, chain_inferred_states, real_states
 
 
-    # def infer_states(self, root_dir, model_id, array_size, start_state, num_timesteps):
-    #         self.model.eval()
-    #         device = self.device
-
-    #         model_dir = os.path.join(root_dir, str(model_id))
-    #         velocity_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity')
-    #         thickness_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness')
-            
-    #         inferred_states = {}
-    #         real_states = {}
-
-    #         min_velocity, max_velocity, min_thickness, max_thickness = self.scaling_factors[2], self.scaling_factors[3], self.scaling_factors[4], self.scaling_factors[5]
-
-    #         with torch.no_grad():
-    #             for i in range(num_timesteps):
-    #                 state_number = start_state + i
-                    
-    #                 velocity_file = os.path.join(velocity_dir, f'{model_id}_velocity_{state_number}.npy')
-    #                 thickness_file = os.path.join(thickness_dir, f'{model_id}_thickness_{state_number}.npy')
-                    
-    #                 if os.path.exists(velocity_file) and os.path.exists(thickness_file):
-    #                     velocity = np.load(velocity_file)
-    #                     thickness = np.load(thickness_file)
-    #                     real_states[i + 1] = np.stack((thickness, velocity), axis=0)
-                    
-    #                 input_tensor = self.create_inference_input(root_dir, model_id, state_number, array_size)
-    #                 input_tensor = input_tensor.to(device).unsqueeze(0)
-                    
-    #                 output = self.model(input_tensor)
-    #                 output = output.squeeze(0).cpu().numpy()
-
-    #                 # Scale the inferred output data back to real-world values
-    #                 output[0, :, :] = output[0, :, :] * (max_velocity - min_velocity) + min_velocity  # Assuming first channel is velocity
-    #                 output[1, :, :] = output[1, :, :] * (max_thickness - min_thickness) + min_thickness  # Assuming second channel is thickness
-
-    #                 inferred_states[i + 1] = output
-
-    #         return inferred_states, real_states
-
-    # def infer_states(self, root_dir, model_id, array_size, start_state, num_timesteps):
-    #     # Make sure the model is in evaluation mode and no gradients are being computed
-    #     self.model.eval()
-    #     device = self.device
-
-    #     # Paths setup
-    #     model_dir = os.path.join(root_dir, str(model_id))
-    #     velocity_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'velocity')
-    #     thickness_dir = os.path.join(model_dir, f'04_FinalProcessedData_{array_size}', 'thickness')
-        
-    #     # Create dictionaries for inferred and real states
-    #     inferred_states = {}
-    #     real_states = {}
-
-    #     with torch.no_grad():
-    #         for t in range(num_timesteps):
-    #             state_number = start_state + t
-                
-    #             # Prepare real state data
-    #             velocity_file = os.path.join(velocity_dir, f'{model_id}_velocity_{state_number}.npy')
-    #             thickness_file = os.path.join(thickness_dir, f'{model_id}_thickness_{state_number}.npy')
-                
-    #             if os.path.exists(velocity_file) and os.path.exists(thickness_file):
-    #                 velocity = np.load(velocity_file)
-    #                 thickness = np.load(thickness_file)
-    #                 real_states[state_number] = np.stack((thickness, velocity), axis=0)
-                
-    #             # Create the inference input for the current state
-    #             input_tensor = self.create_inference_input(root_dir, model_id, state_number, array_size)
-    #             input_tensor = input_tensor.to(device).unsqueeze(0)  # Add a batch dimension
-                
-    #             # Perform inference
-    #             output = self.model(input_tensor)
-                
-    #             # Store the inferred state
-    #             inferred_states[state_number] = output.squeeze(0).cpu().numpy()
-
-    #     return inferred_states, real_states
-
-
     def infer(self, initial_input, num_timesteps):
         self.model.eval()
         device = self.device
@@ -467,7 +266,7 @@ class TrainerPairs:
         elevation = initial_input[0].unsqueeze(0)  # This is possibly incorrect if initial_input already includes a batch dimension
 
 
-        # Adjust elevation to have a channels dimension (assuming elevation data is a single channel)
+        # Adjust elevation to have a channels dimension
         elevation = elevation.unsqueeze(1)  # Add a channel dimension making it [1, 1, height, width]
 
 
@@ -1201,85 +1000,6 @@ class TrainerPairs:
 
 
 
-# class TrainerSeries:
-#     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints", patience=10):
-#         self.model = model
-#         self.optimizer = optimizer
-#         self.criterion = criterion
-#         self.device = device
-#         self.model_name = model_name.strip()
-#         self.checkpoint_dir = os.path.join(checkpoint_dir.strip(), model_name) if model_name else checkpoint_dir.strip()
-#         self.training_losses = []
-#         self.validation_losses = []
-#         self.patience = patience
-#         self.best_val_loss = float('inf')
-#         self.epochs_no_improve = 0
-#         self.early_stop = False
-
-#         # Scheduler
-#         self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
-
-#         # Ensure the checkpoint directory exists
-#         os.makedirs(self.checkpoint_dir, exist_ok=True)
-
-#     def train(self, train_loader, val_loader, epochs):
-#         self.model.train()
-#         checkpoint_interval = 5  # Save every 5 epochs
-#         for epoch in range(epochs):
-#             total_loss = 0.0
-#             for sequence, next_state in train_loader:
-#                 sequence = sequence.to(self.device)
-#                 next_state = next_state.to(self.device)
-                
-#                 self.optimizer.zero_grad()
-#                 predictions, _ = self.model(sequence)
-#                 loss = self.criterion(predictions, next_state)
-#                 loss.backward()
-#                 self.optimizer.step()
-                
-#                 total_loss += loss.item()
-            
-#             avg_loss = total_loss / len(train_loader)
-#             self.training_losses.append(avg_loss)
-#             print(f'Epoch [{epoch+1}/{epochs}], Loss: {avg_loss:.4f}')
-
-#             # Validation step
-#             val_loss = self.validate(val_loader)
-#             self.validation_losses.append(val_loss)
-#             self.scheduler.step(val_loss)
-
-#             # Optionally, print the current learning rate
-#             current_lr = self.scheduler.get_last_lr()
-#             print(f"Current Learning Rate: {current_lr}")
-
-#             # Early stopping logic
-#             if val_loss < self.best_val_loss:
-#                 self.best_val_loss = val_loss
-#                 self.epochs_no_improve = 0
-#             else:
-#                 self.epochs_no_improve += 1
-#                 if self.epochs_no_improve >= self.patience:
-#                     print("Early stopping")
-#                     self.early_stop = True
-#                     break
-
-#             # Save the model at the specified checkpoint interval
-#             if (epoch + 1) % checkpoint_interval == 0:
-#                 self.save_checkpoint(epoch + 1)
-
-#         # Save checkpoint after the final epoch if it does not align with the interval
-#         if (epochs % checkpoint_interval != 0) and not self.early_stop:
-#             self.save_checkpoint(epochs)
-
-#         # Save losses after the final epoch
-#         self.save_losses(epochs)
-
-#         # After training, plot the training and validation losses
-#         self.plot_losses()
-        
-#         self.sequence_length = train_loader.dataset.dataset.sequence_length
-#         self.scaling_factors = train_loader.dataset.dataset.scaling_factors
-
 
 class TrainerSeries:
     def __init__(self, model, optimizer, criterion, device, model_name="", checkpoint_dir="model_checkpoints"):
@@ -1405,7 +1125,7 @@ class TrainerSeries:
                 current = current.to(self.device)
                 next_velocity = next_velocity.to(self.device)
                 
-                predictions, _ = self.model(current)  # Unpack the tuple if your model returns more than one output
+                predictions, _ = self.model(current)  # Unpack the tuple if model returns more than one output
                 loss = self.criterion(predictions, next_velocity)
                 total_loss += loss.item()
         avg_loss = total_loss / len(test_loader)
